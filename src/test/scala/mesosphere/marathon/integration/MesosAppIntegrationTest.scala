@@ -3,19 +3,21 @@ package integration
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.http.scaladsl.model.HttpResponse
 import mesosphere.marathon.core.health.{ MesosHttpHealthCheck, PortReference }
 import mesosphere.marathon.core.pod.{ HostNetwork, HostVolume, MesosContainer, PodDefinition }
 import mesosphere.marathon.integration.facades.MarathonFacade._
-import mesosphere.marathon.integration.setup.{ EmbeddedMarathonTest, MesosConfig, WaitTestSupport }
+import mesosphere.marathon.integration.setup.{ EmbeddedMarathonTest, MesosConfig, RestResult, WaitTestSupport }
 import mesosphere.marathon.raml.{ App, Container, DockerContainer, EngineType }
 import mesosphere.marathon.state.PathId._
 import mesosphere.{ AkkaIntegrationTest, WhenEnvSet }
+import org.scalatest.concurrent.Eventually
 
 import scala.collection.immutable.Seq
 import scala.concurrent.duration._
 
 @IntegrationTest
-class MesosAppIntegrationTest extends AkkaIntegrationTest with EmbeddedMarathonTest {
+class MesosAppIntegrationTest extends AkkaIntegrationTest with EmbeddedMarathonTest with Eventually {
 
   // Integration tests using docker image provisioning with the Mesos containerizer need to be
   // run as root in a Linux environment. They have to be explicitly enabled through an env variable.
@@ -187,11 +189,15 @@ class MesosAppIntegrationTest extends AkkaIntegrationTest with EmbeddedMarathonT
       waitForDeployment(updateResult)
 
       When("The pod should be deleted")
-      val deleteResult = marathon.deletePod(pod.id)
+      var deleteResult: Option[RestResult[HttpResponse]] = Option.empty
+      eventually {
+        val result = marathon.deletePod(pod.id)
+        result.code should be(202) withClue s"Response: ${result.entityString}" // Delete
+        deleteResult = Some(result)
+      }
 
       Then("The pod is deleted")
-      deleteResult.code should be(202) // Deleted
-      waitForDeployment(deleteResult)
+      waitForDeployment(deleteResult.value)
     }
 
     "deploy a pod with Entrypoint/Cmd" taggedAs WhenEnvSet(envVar, default = "true") in {
