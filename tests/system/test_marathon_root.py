@@ -60,6 +60,48 @@ def test_marathon_delete_leader(marathon_service_name):
 
     marathon_leadership_changed()
 
+@masters(3)
+def test_marathon_delete_leader_and_check_apps(marathon_service_name):
+
+    original_leader = shakedown.marathon_leader_ip()
+    print('leader: {}'.format(original_leader))
+
+    # start an app
+    app_def = {
+        "id": "/sleep",
+        "instances": 1,
+        "cpus": 0.01,
+        "mem": 32,
+        "cmd": "sleep 100000"
+    }
+    app_id = app_def['id']
+
+    client = marathon.create_client()
+    client.add_app(app_def)
+    shakedown.deployment_wait()
+
+    app = client.get_app(app_id)
+    assert app['tasksRunning'] == 1
+
+    # abdicate leader after app was started successfully
+    common.delete_marathon_path('v2/leader')
+
+    shakedown.wait_for_service_endpoint(marathon_service_name, timedelta(minutes=5).total_seconds())
+
+    @retrying.retry(stop_max_attempt_number=30)
+    def marathon_leadership_changed():
+        current_leader = shakedown.marathon_leader_ip()
+        print('leader: {}'.format(current_leader))
+        assert original_leader != current_leader
+
+    # wait until leader changed
+    marathon_leadership_changed()
+
+    # check if app definition is still there and instance is still running after new leader was elected
+    client = marathon.create_client()
+    app = client.get_app(app_id)
+    assert app['tasksRunning'] == 1
+
 
 @masters(3)
 def test_marathon_zk_partition_leader_change(marathon_service_name):
