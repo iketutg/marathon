@@ -200,8 +200,12 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
         result.code == 200 && result.value != leader
       }
 
+      val newLeader = firstRunningProcess.client.leader().value
+      val newLeadingProcess: LocalMarathon = leadingServerProcess(newLeader.leader)
+      val newClient = newLeadingProcess.client
+
       // we should have one survived instance
-      marathon.app(app.id.toPath).value.app.instances should be(1)
+      newClient.app(app.id.toPath).value.app.instances should be(1)
 
       // allow ZK session for former leader to timeout before proceeding
       Thread.sleep((zkTimeout * 2.5).toLong)
