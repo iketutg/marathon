@@ -5,6 +5,8 @@ import mesosphere.AkkaIntegrationTest
 import mesosphere.marathon.integration.facades.MarathonFacade
 import mesosphere.marathon.integration.facades.MarathonFacade.extractDeploymentIds
 import mesosphere.marathon.integration.setup._
+import mesosphere.marathon.raml.App
+import mesosphere.marathon.state.PathId._
 
 import scala.concurrent.duration._
 
@@ -170,6 +172,11 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
       Given("a leader")
       WaitTestSupport.waitUntil("a leader has been elected") { firstRunningProcess.client.leader().code == 200 }
 
+      // pick the leader to communicate with because it's the only known survivor
+      val leader = firstRunningProcess.client.leader().value
+      val leadingProcess: LocalMarathon = leadingServerProcess(leader.leader)
+      val client = leadingProcess.client
+
       val app = App("/test", cmd = Some("sleep 1000"))
       val result = marathon.createAppV2(app)
       result.code should be(201) //Created
@@ -177,11 +184,11 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
       waitForDeployment(result)
 
       When("calling DELETE /v2/leader")
-      val result = client.abdicate()
+      val abdicateResult = client.abdicate()
 
       Then("the request should be successful")
-      result.code should be (200)
-      (result.entityJson \ "message").as[String] should be ("Leadership abdicated")
+      abdicateResult.code should be (200)
+      (abdicateResult.entityJson \ "message").as[String] should be ("Leadership abdicated")
 
       And("the leader must have died")
       WaitTestSupport.waitUntil("the former leading marathon process dies", 30.seconds) { !leadingProcess.isRunning() }
