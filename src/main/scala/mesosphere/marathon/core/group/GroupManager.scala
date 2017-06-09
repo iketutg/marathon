@@ -3,7 +3,7 @@ package core.group
 
 import java.time.OffsetDateTime
 
-import akka.NotUsed
+import akka.{ Done, NotUsed }
 import akka.stream.scaladsl.Source
 import mesosphere.marathon.core.instance.Instance
 import mesosphere.marathon.core.pod.PodDefinition
@@ -150,5 +150,5 @@ trait GroupManager {
     toKill: Seq[Instance] = Seq.empty
   ): Future[DeploymentPlan] = updateRoot(podId.parent, _.updatePod(podId, fn, version), version, force, Map(podId -> toKill))
 
-  def refreshGroupCache(): Unit
+  def refreshGroupCache(): Future[Done]
 }

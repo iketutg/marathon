@@ -180,8 +180,8 @@ class StoredGroupRepositoryImpl[K, C, S](
   This gives us read-after-write consistency.
    */
   private val lock = RichLock()
-  private val rootNotLoaded = Future.failed[RootGroup](new Exception("Root not yet loaded"))
-  private var rootFuture = rootNotLoaded
+  private val rootNotLoaded: Future[RootGroup] = Future.failed[RootGroup](new Exception("Root not yet loaded"))
+  private var rootFuture: Future[RootGroup] = rootNotLoaded
   private[storage] var beforeStore = Option.empty[(StoredGroup) => Future[Done]]
   private val versionCache = TrieMap.empty[OffsetDateTime, Group]
 
@@ -242,8 +242,9 @@ class StoredGroupRepositoryImpl[K, C, S](
       }
     }
 
-  override def refreshGroupCache() = {
+  override def refreshGroupCache(): Future[Done] = {
     rootFuture = rootNotLoaded
+    Future.successful(Done)
   }
 
   override def rootVersions(): Source[OffsetDateTime, NotUsed] =

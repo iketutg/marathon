@@ -4,9 +4,9 @@ package core.group.impl
 import java.time.OffsetDateTime
 import javax.inject.Provider
 
-import akka.NotUsed
 import akka.event.EventStream
 import akka.stream.scaladsl.Source
+import akka.{ Done, NotUsed }
 import com.typesafe.scalalogging.StrictLogging
 import mesosphere.marathon.api.v2.Validation
 import mesosphere.marathon.core.deployment.DeploymentPlan
@@ -193,11 +193,13 @@ class GroupManagerImpl(
     }
   }
 
-  override def refreshGroupCache(): Unit = {
-    groupRepository.refreshGroupCache()
-    async {
-      val currentRoot = await(groupRepository.root())
-      root := currentRoot
+  override def refreshGroupCache(): Future[Done] = {
+    groupRepository.refreshGroupCache().flatMap { _ =>
+      async {
+        val currentRoot = await(groupRepository.root())
+        root := currentRoot
+        Done
+      }
     }
   }
 }

@@ -199,8 +199,8 @@ class MarathonSchedulerService @Inject() (
   override def startLeadership(): Unit = synchronized {
     log.info("As new leader running the driver")
 
-    // update group repository
-    groupManager.refreshGroupCache()
+    // refresh group repository cache
+    Await.result(groupManager.refreshGroupCache(), Duration.Inf)
 
     // execute tasks, only the leader is allowed to
     migration.migrate()
