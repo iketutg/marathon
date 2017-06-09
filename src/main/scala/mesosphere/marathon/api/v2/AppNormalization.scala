@@ -318,13 +318,13 @@ object AppNormalization {
   }
 
   /** static app normalization configuration */
-  case class Configure(nc: NetworkNormalization.Config, override val mesosBridgeName: String) extends Config {
+  case class Configuration(nc: NetworkNormalization.Config, override val mesosBridgeName: String) extends Config {
     override val defaultNetworkName: Option[String] = nc.defaultNetworkName
   }
 
-  object Configure {
+  object Configuration {
     def apply(defaultNetworkName: Option[String], mesosBridgeName: String): Config =
-      Configure(NetworkNormalization.Configure(defaultNetworkName), mesosBridgeName)
+      Configuration(NetworkNormalization.Configure(defaultNetworkName), mesosBridgeName)
   }
 
   /**

@@ -114,7 +114,7 @@ object PodDefinition {
   val DefaultConstraints = Set.empty[Protos.Constraint]
   val DefaultVersion = Timestamp.now()
   val DefaultVolumes = Seq.empty[Volume]
-  /** keep aligned with [[api.v2.PodNormalization.DefaultNetworks]] */
+  /** if you change something below, please do the same at [[api.v2.PodNormalization.DefaultNetworks]] */
   val DefaultNetworks = Seq.empty[Network]
   val DefaultBackoffStrategy = BackoffStrategy()
   val DefaultUpgradeStrategy = AppDefinition.DefaultUpgradeStrategy

@@ -50,7 +50,7 @@ class PodsResource @Inject() (
 
   // If we change/add/upgrade the notion of a Pod and can't do it purely in the internal model,
   // update the json first
-  private implicit val normalizer = PodNormalization.apply(PodNormalization.Configure(
+  private implicit val normalizer = PodNormalization.apply(PodNormalization.Configuration(
     config.defaultNetworkName.get))
 
   // If we can normalize using the internal model, do that instead.

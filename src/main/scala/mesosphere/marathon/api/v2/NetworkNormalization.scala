@@ -39,5 +39,5 @@ object NetworkNormalization {
 }
 
 object NetworkNormalizationMessages {
-  val ContainerNetworkNameUnresolved = "container network name is unresolved"
+  val ContainerNetworkNameUnresolved = "container network name is not defined"
 }

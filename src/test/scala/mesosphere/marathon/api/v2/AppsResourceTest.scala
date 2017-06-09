@@ -52,7 +52,7 @@ class AppsResourceTest extends AkkaUnitTest with GroupCreation {
       PluginManager.None
     )(auth.auth, auth.auth)
 
-    val normalizationConfig = AppNormalization.Configure(config.defaultNetworkName.get, config.mesosBridgeName())
+    val normalizationConfig = AppNormalization.Configuration(config.defaultNetworkName.get, config.mesosBridgeName())
 
     def normalize(app: App): App = {
       val migrated = AppNormalization.forDeprecated(normalizationConfig).normalized(app)
@@ -256,8 +256,9 @@ class AppsResourceTest extends AkkaUnitTest with GroupCreation {
         cmd = Some("cmd"),
         networks = Seq(Network(mode = NetworkMode.Container))
       )
-      val ex = intercept[NormalizationException](prepareApp(app, groupManager))
-      ex.msg shouldBe NetworkNormalizationMessages.ContainerNetworkNameUnresolved
+      the[NormalizationException] thrownBy {
+        prepareApp(app, groupManager)
+      } should have message NetworkNormalizationMessages.ContainerNetworkNameUnresolved
     }
     "Create a new app with IP/CT on virtual network foo" in new Fixture {
       Given("An app and group")
@@ -354,10 +355,9 @@ class AppsResourceTest extends AkkaUnitTest with GroupCreation {
       val updatedBody = Json.stringify(updatedJson).getBytes("UTF-8")
 
       Then("the update should fail")
-      val caught = intercept[NormalizationException] {
+      the[NormalizationException] thrownBy {
         appsResource.replace(updatedApp.id, updatedBody, force = false, partialUpdate = false, auth.request)
-      }
-      caught.getMessage() should be(NetworkNormalizationMessages.ContainerNetworkNameUnresolved)
+      } should have message NetworkNormalizationMessages.ContainerNetworkNameUnresolved
     }
 
     "Create a new app without IP/CT when default virtual network is bar" in new Fixture(configArgs = Seq("--default_network_name", "bar")) {

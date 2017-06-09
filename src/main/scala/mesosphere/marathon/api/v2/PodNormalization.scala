@@ -5,7 +5,7 @@ import mesosphere.marathon.raml.{ Endpoint, Network, NetworkMode, Pod, PodContai
 
 object PodNormalization {
 
-  /** keep aligned with [[core.pod.PodDefinition.DefaultNetworks]] */
+  /** if you change something below, please do the same at [[core.pod.PodDefinition.DefaultNetworks]] */
   val DefaultNetworks = Seq.empty[Network]
   val DefaultHostPort = 0
 
@@ -15,13 +15,13 @@ object PodNormalization {
   /** dynamic pod normalization configuration, useful for migration and/or testing */
   trait Config extends NetworkNormalization.Config
 
-  case class Configure(nc: NetworkNormalization.Config) extends Config {
+  case class Configuration(nc: NetworkNormalization.Config) extends Config {
     override val defaultNetworkName: Option[String] = nc.defaultNetworkName
   }
 
-  object Configure {
+  object Configuration {
     def apply(defaultNetworkName: Option[String]): Config =
-      Configure(NetworkNormalization.Configure(defaultNetworkName))
+      Configuration(NetworkNormalization.Configure(defaultNetworkName))
   }
 
   case class Containers(networks: Seq[Network], containers: Seq[PodContainer])

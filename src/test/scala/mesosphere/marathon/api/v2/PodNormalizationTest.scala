@@ -64,7 +64,7 @@ class PodNormalizationTest extends UnitTest with Inside {
             net.name.value shouldBe "net1"
         }
       }
-      "with default network name" in new Fixture(PodNormalization.Configure(Some("default1"))) {
+      "with default network name" in new Fixture(PodNormalization.Configuration(Some("default1"))) {
         // replace empty network name with the default
         val withoutNetworkName = template.copy(networks = Seq(Network()))
         inside(withoutNetworkName.normalize.networks) {
@@ -82,7 +82,7 @@ class PodNormalizationTest extends UnitTest with Inside {
     }
   }
 
-  abstract class Fixture(config: PodNormalization.Config = PodNormalization.Configure(None)) {
+  abstract class Fixture(config: PodNormalization.Config = PodNormalization.Configuration(None)) {
     protected implicit val normalization: Normalization[Pod] = PodNormalization(config)
   }
 }

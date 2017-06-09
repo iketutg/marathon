@@ -90,21 +90,21 @@ class AppNormalizationTest extends UnitTest {
         fetchEmptyUris should be(expected)
       }
       "fetch and uris are both non-empty" in {
-        assertThrows[NormalizationException] {
+        a[NormalizationException] should be thrownBy {
           AppNormalization.Artifacts(Option(Seq("u")), Option(Seq(Artifact("a")))).normalize
         }
       }
     }
 
     def normalizer(defaultNetworkName: Option[String] = None, mesosBridgeName: String = raml.Networks.DefaultMesosBridgeName) = {
-      val config = AppNormalization.Configure(defaultNetworkName, mesosBridgeName)
+      val config = AppNormalization.Configuration(defaultNetworkName, mesosBridgeName)
       Normalization[App] { app =>
         AppNormalization(config).normalized(AppNormalization.forDeprecated(config).normalized(app))
       }
     }
 
     def updateNormalizer(defaultNetworkName: Option[String] = None, mesosBridgeName: String = raml.Networks.DefaultMesosBridgeName) = {
-      val config = AppNormalization.Configure(defaultNetworkName, mesosBridgeName)
+      val config = AppNormalization.Configuration(defaultNetworkName, mesosBridgeName)
       Normalization[AppUpdate] { app =>
         AppNormalization.forUpdates(config)
           .normalized(AppNormalization.forDeprecatedUpdates(config).normalized(app))
@@ -166,7 +166,7 @@ class AppNormalizationTest extends UnitTest {
       }
 
       "fails when ipAddress discovery ports and container port mappings are both specified" in new Fixture {
-        assertThrows[NormalizationException] {
+        a[NormalizationException] should be thrownBy {
           legacyMesosApp.copy(container = legacyMesosApp.container.map(_.copy(portMappings = Some(Nil)))).normalize
         }
       }
@@ -262,7 +262,7 @@ class AppNormalizationTest extends UnitTest {
       }
 
       "legacy docker app specifies NONE networking, with or without ipAddress" in {
-        assertThrows[NormalizationException] {
+        a[NormalizationException] should be thrownBy {
           App(
             "/foo",
             container = Some(Container(
@@ -272,7 +272,7 @@ class AppNormalizationTest extends UnitTest {
             ipAddress = Some(IpAddress())
           ).normalize
         }
-        assertThrows[NormalizationException] {
+        a[NormalizationException] should be thrownBy {
           App(
             "/foo",
             container = Some(Container(
@@ -283,7 +283,7 @@ class AppNormalizationTest extends UnitTest {
         }
       }
       "legacy docker app specifies both legacy and canonical networking modes" in {
-        assertThrows[NormalizationException] {
+        a[NormalizationException] should be thrownBy {
           App(
             "/foo",
             container = Some(Container(
@@ -293,7 +293,7 @@ class AppNormalizationTest extends UnitTest {
             networks = Seq(Network(mode = NetworkMode.Host))
           ).normalize
         }
-        assertThrows[NormalizationException] {
+        a[NormalizationException] should be thrownBy {
           App(
             "/foo",
             container = Some(Container(
@@ -303,7 +303,7 @@ class AppNormalizationTest extends UnitTest {
             networks = Seq(Network(mode = NetworkMode.ContainerBridge))
           ).normalize
         }
-        assertThrows[NormalizationException] {
+        a[NormalizationException] should be thrownBy {
           App(
             "/foo",
             container = Some(Container(
@@ -490,7 +490,7 @@ class AppNormalizationTest extends UnitTest {
       }
 
       "prevent a legacy docker bridge mode app from mixing empty and non-empty port mappings" in {
-        assertThrows[NormalizationException] {
+        a[NormalizationException] should be thrownBy {
           App(
             id = "/foo",
             cmd = Option("sleep"),
