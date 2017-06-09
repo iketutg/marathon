@@ -150,4 +150,5 @@ trait GroupManager {
     toKill: Seq[Instance] = Seq.empty
   ): Future[DeploymentPlan] = updateRoot(podId.parent, _.updatePod(podId, fn, version), version, force, Map(podId -> toKill))
 
+  def refreshGroupCache(): Unit
 }

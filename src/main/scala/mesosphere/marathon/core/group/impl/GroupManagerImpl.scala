@@ -192,4 +192,12 @@ class GroupManagerImpl(
       rootGroup.updateApp(app.id, _ => app, app.version)
     }
   }
+
+  override def refreshGroupCache(): Unit = {
+    groupRepository.refreshGroupCache()
+    async {
+      val currentRoot = await(groupRepository.root())
+      root := currentRoot
+    }
+  }
 }
