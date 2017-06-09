@@ -12,6 +12,7 @@ import com.typesafe.config.{ Config, ConfigRenderOptions }
 import com.typesafe.scalalogging.StrictLogging
 import com.wix.accord.Validator
 import mesosphere.marathon.metrics.Metrics
+import mesosphere.marathon.metrics.Spindump;
 import mesosphere.marathon.plugin.auth.AuthorizedResource.{ SystemConfig, SystemMetrics }
 import mesosphere.marathon.plugin.auth.{ Authenticator, Authorizer, UpdateResource, ViewResource }
 import mesosphere.marathon.raml.{ LoggerChange, Raml }
@@ -45,6 +46,29 @@ class SystemResource @Inject() (val config: MarathonConf, cfg: Config)(implicit
   def metrics(@Context req: HttpServletRequest): Response = authenticated(req) { implicit identity =>
     withAuthorization(ViewResource, SystemMetrics){
       ok(jsonString(Raml.toRaml(Metrics.snapshot())))
+    }
+  }
+
+  @GET
+  @Path("spindump")
+  def spindump(@Context req: HttpServletRequest): Response = authenticated(req) { implicit identity =>
+    withAuthorization(ViewResource, SystemMetrics){
+      val queryDuration: Array[String] = req.getParameterValues("duration")
+      var duration: Int = 10;
+
+      // Safely process user input regarding the sample duration
+      if (queryDuration.length > 0) {
+        duration = queryDuration(0).toInt
+        if (duration < 0) {
+          duration = 0
+        }
+        if (duration > 30) {
+          duration = 30
+        }
+      }
+
+      // Run spindump and respond
+      ok(Spindump.collect(duration))
     }
   }
 
