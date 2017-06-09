@@ -3,6 +3,7 @@ package integration
 
 import mesosphere.AkkaIntegrationTest
 import mesosphere.marathon.integration.facades.MarathonFacade
+import mesosphere.marathon.integration.facades.MarathonFacade.extractDeploymentIds
 import mesosphere.marathon.integration.setup._
 
 import scala.concurrent.duration._
@@ -148,6 +149,55 @@ class ReelectionLeaderIntegrationTest extends LeaderIntegrationTest {
         And("the old leader should restart just fine")
         leadingProcess.start().futureValue
       }
+    }
+  }
+}
+
+// Regression test for MARATHON-7458
+@IntegrationTest
+class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTest {
+
+  val zkTimeout = 2000L
+  override val marathonArgs: Map[String, String] = Map(
+    "zk_timeout" -> s"$zkTimeout"
+  )
+
+  override val numAdditionalMarathons = 2
+
+  "Abdicating a leader" should {
+    "keep all running apps alive" in {
+
+      Given("a leader")
+      WaitTestSupport.waitUntil("a leader has been elected") { firstRunningProcess.client.leader().code == 200 }
+
+      val app = App("/test", cmd = Some("sleep 1000"))
+      val result = marathon.createAppV2(app)
+      result.code should be(201) //Created
+      extractDeploymentIds(result) should have size 1
+      waitForDeployment(result)
+
+      When("calling DELETE /v2/leader")
+      val result = client.abdicate()
+
+      Then("the request should be successful")
+      result.code should be (200)
+      (result.entityJson \ "message").as[String] should be ("Leadership abdicated")
+
+      And("the leader must have died")
+      WaitTestSupport.waitUntil("the former leading marathon process dies", 30.seconds) { !leadingProcess.isRunning() }
+      leadingProcess.stop() // already stopped, but still need to clear old state
+
+      And("the leader must have changed")
+      WaitTestSupport.waitUntil("the leader changes") {
+        val result = firstRunningProcess.client.leader()
+        result.code == 200 && result.value != leader
+      }
+
+      // we should have one survived instance
+      marathon.app(app.id.toPath).value.app.instances should be(1)
+
+      // allow ZK session for former leader to timeout before proceeding
+      Thread.sleep((zkTimeout * 2.5).toLong)
     }
   }
 }
