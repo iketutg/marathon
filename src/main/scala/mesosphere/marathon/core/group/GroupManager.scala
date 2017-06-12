@@ -150,5 +150,11 @@ trait GroupManager {
     toKill: Seq[Instance] = Seq.empty
   ): Future[DeploymentPlan] = updateRoot(podId.parent, _.updatePod(podId, fn, version), version, force, Map(podId -> toKill))
 
+  /**
+    * Refresh the internal root group cache. When calling this function, the internal hold cached root group will be dropped
+    * and loaded when accessing the next time.
+    *
+    * @return Done if refresh was successful
+    */
   def refreshGroupCache(): Future[Done]
 }
