@@ -6,6 +6,7 @@
 """
 import common
 import shakedown
+import uuid
 
 # this is intentional import *
 # it imports all the common test_ methods which are to be tested on root and mom
@@ -67,13 +68,7 @@ def test_marathon_delete_leader_and_check_apps(marathon_service_name):
     print('leader: {}'.format(original_leader))
 
     # start an app
-    app_def = {
-        "id": "/sleep",
-        "instances": 1,
-        "cpus": 0.01,
-        "mem": 32,
-        "cmd": "sleep 100000"
-    }
+    app_def = common.app(id=uuid.uuid4().hex)
     app_id = app_def['id']
 
     client = marathon.create_client()
@@ -98,12 +93,12 @@ def test_marathon_delete_leader_and_check_apps(marathon_service_name):
     marathon_leadership_changed()
 
     @retrying.retry(stop_max_attempt_number=30)
-    def new_leader_responding(expected_instances):
+    def check_app_existence(expected_instances):
         app = client.get_app(app_id)
         assert app['tasksRunning'] == expected_instances
 
     # check if app definition is still there and one instance is still running after new leader was elected
-    new_leader_responding(1)
+    check_app_existence(1)
 
     client.remove_app(app_id)
     shakedown.deployment_wait()
@@ -120,7 +115,7 @@ def test_marathon_delete_leader_and_check_apps(marathon_service_name):
     marathon_leadership_changed()
 
     # check if app definition is still not there and no instance is running after new leader was elected
-    new_leader_responding(0)
+    check_app_existence(0)
 
 
 @masters(3)

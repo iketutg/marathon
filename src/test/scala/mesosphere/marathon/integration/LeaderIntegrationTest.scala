@@ -182,6 +182,8 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
       result.code should be(201) //Created
       extractDeploymentIds(result) should have size 1
       waitForDeployment(result)
+      val oldInstances = client.tasks(app.id.toPath).value
+      oldInstances should have size 1
 
       When("calling DELETE /v2/leader")
       val abdicateResult = client.abdicate()
@@ -206,6 +208,9 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
 
       // we should have one survived instance
       newClient.app(app.id.toPath).value.app.instances should be(1)
+      val newInstances = newClient.tasks(app.id.toPath).value
+      newInstances should have size 1
+      newInstances(0).id should be (oldInstances(0).id)
 
       // allow ZK session for former leader to timeout before proceeding
       Thread.sleep((zkTimeout * 2.5).toLong)

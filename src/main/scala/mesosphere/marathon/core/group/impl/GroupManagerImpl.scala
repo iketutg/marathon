@@ -194,12 +194,13 @@ class GroupManagerImpl(
   }
 
   override def refreshGroupCache(): Future[Done] = {
-    groupRepository.refreshGroupCache().flatMap { _ =>
-      async {
-        val currentRoot = await(groupRepository.root())
-        root := currentRoot
-        Done
-      }
+    async {
+      // propagation of reset group caches on repository is needed,
+      // because manager and repository are holding own caches
+      await(groupRepository.refreshGroupCache())
+      val currentRoot = await(groupRepository.root())
+      root := currentRoot
+      Done
     }
   }
 }
