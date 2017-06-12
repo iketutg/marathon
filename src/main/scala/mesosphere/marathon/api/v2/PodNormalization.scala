@@ -5,7 +5,6 @@ import mesosphere.marathon.raml.{ Endpoint, Network, NetworkMode, Pod, PodContai
 
 object PodNormalization {
 
-  /** if you change something below, please do the same at [[core.pod.PodDefinition.DefaultNetworks]] */
   val DefaultNetworks = Seq.empty[Network]
   val DefaultHostPort = 0
 
