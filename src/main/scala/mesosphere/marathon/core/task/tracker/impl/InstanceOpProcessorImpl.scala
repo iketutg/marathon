@@ -33,7 +33,10 @@ private[tracker] class InstanceOpProcessorImpl(
       case change: InstanceUpdateEffect.Expunge =>
         // Used for task termination or as a result from a UpdateStatus action.
         // The expunge is propagated to the instanceTracker which informs the sender about the success (see Ack).
-        repository.delete(change.instance.instanceId).map { _ => InstanceTrackerActor.Ack(op.sender, change) }
+        repository.delete(change.instance.instanceId).map { _ =>
+          log.debug(s"Expunged $change")
+          InstanceTrackerActor.Ack(op.sender, change)
+        }
           .recoverWith(tryToRecover(op)(
             expectedState = None, oldState = Some(change.instance), change.events))
           .flatMap { ack: InstanceTrackerActor.Ack => notifyTaskTrackerActor(ack) }
@@ -54,7 +57,10 @@ private[tracker] class InstanceOpProcessorImpl(
       case change: InstanceUpdateEffect.Update =>
         // Used for a create or as a result from a UpdateStatus action.
         // The update is propagated to the taskTracker which in turn informs the sender about the success (see Ack).
-        repository.store(change.instance).map { _ => InstanceTrackerActor.Ack(op.sender, change) }
+        repository.store(change.instance).map { _ =>
+          log.debug(s"Stored $change")
+          InstanceTrackerActor.Ack(op.sender, change)
+        }
           .recoverWith(tryToRecover(op)(
             expectedState = Some(change.instance), oldState = change.oldState, change.events))
           .flatMap { ack => notifyTaskTrackerActor(ack) }
@@ -71,6 +77,7 @@ private[tracker] class InstanceOpProcessorImpl(
     implicit val taskTrackerQueryTimeout: Timeout = config.internalTaskTrackerRequestTimeout().milliseconds
 
     val msg = InstanceTrackerActor.StateChanged(ack)
+    log.debug(s"Notify instance tracker actor: msg=$msg")
     (instanceTrackerRef ? msg).map(_ => ())
   }
 
