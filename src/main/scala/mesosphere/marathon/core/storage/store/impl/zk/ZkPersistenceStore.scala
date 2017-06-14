@@ -212,7 +212,7 @@ class ZkPersistenceStore(
             logger.debug(s"Successfully stored under $id")
             Done
           case Failure(e: NoNodeException) =>
-            logger.warn(s"Could not store ($id, $v)", e)
+            logger.warn(s"Node for $id not found. Creating node now", e)
             await(limitRequests(client.create(
               id.path,
               creatingParentContainersIfNeeded = true, data = Some(v.bytes))).asTry) match {
