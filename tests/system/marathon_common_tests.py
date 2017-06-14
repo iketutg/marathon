@@ -888,7 +888,8 @@ def test_default_user():
     client.add_app(application_json)
     shakedown.deployment_wait()
     app = client.get_app(application_json['id'])
-    assert app['user'] is None
+    user = app.get('user')
+    assert user is None
 
     # wait for deployment to finish
     tasks = client.get_tasks("unique-sleep")
