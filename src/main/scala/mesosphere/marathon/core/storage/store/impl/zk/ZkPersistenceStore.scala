@@ -204,12 +204,15 @@ class ZkPersistenceStore(
 
   @SuppressWarnings(Array("all")) // async/await
   override protected def rawStore[V](id: ZkId, v: ZkSerialized): Future[Done] = {
+    logger.debug(s"Storing inder $id")
     retry(s"ZkPersistenceStore::store($id, $v)") {
       async {
         await(client.setData(id.path, v.bytes).asTry) match {
           case Success(_) =>
+            logger.debug(s"Successfully stored under $id")
             Done
-          case Failure(_: NoNodeException) =>
+          case Failure(e: NoNodeException) =>
+            logger.warn(s"Could not store ($id, $v)", e)
             await(limitRequests(client.create(
               id.path,
               creatingParentContainersIfNeeded = true, data = Some(v.bytes))).asTry) match {
@@ -227,8 +230,10 @@ class ZkPersistenceStore(
             }
 
           case Failure(e: KeeperException) =>
+            logger.warn(s"Could not store under $id", e)
             throw new StoreCommandFailedException(s"Unable to store $id", e)
           case Failure(e) =>
+            logger.warn(s"Could not store under $id", e)
             throw e
         }
       }

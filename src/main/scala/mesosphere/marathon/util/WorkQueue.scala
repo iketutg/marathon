@@ -4,6 +4,8 @@ package util
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 
+import com.typesafe.scalalogging.StrictLogging
+
 import scala.concurrent.{ ExecutionContext, Future, Promise }
 import mesosphere.marathon.functional._
 
@@ -31,13 +33,14 @@ import scala.collection.mutable
   *               There can be other use cases as well, where you may want to limit the number of
   *               total operations for a class to X while limiting a particular operation to Y where Y < X.
   */
-case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int, parent: Option[WorkQueue] = None) {
+case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int, parent: Option[WorkQueue] = None) extends StrictLogging {
   require(maxConcurrent > 0 && maxQueueLength >= 0)
   private case class WorkItem[T](f: () => Future[T], ctx: ExecutionContext, promise: Promise[T])
   private val queue = new ConcurrentLinkedQueue[WorkItem[_]]()
   private val totalOutstanding = new AtomicInteger(0)
 
   private def run[T](workItem: WorkItem[T]): Future[T] = {
+    logger.debug(s"Run work item in $name queue")
     parent.fold {
       workItem.ctx.execute(new Runnable {
         override def run(): Unit = {
@@ -55,7 +58,10 @@ case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int, pare
   private def executeNextIfPossible(): Unit = {
     Option(queue.poll()).fold[Unit] {
       totalOutstanding.decrementAndGet()
-    } { run(_) }
+    } { item =>
+      logger.debug(s"Process next item in $name queue")
+      run(item)
+    }
   }
 
   def blocking[T](f: => T)(implicit ctx: ExecutionContext): Future[T] = {
@@ -71,6 +77,7 @@ case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int, pare
       if (queue.size + 1 > maxQueueLength) {
         Future.failed(new IllegalStateException(s"$name queue may not exceed $maxQueueLength entries"))
       } else {
+        logger.debug(s"Queue item in $name")
         val promise = Promise[T]()
         queue.add(WorkItem(() => f, ctx, promise))
         promise.future
