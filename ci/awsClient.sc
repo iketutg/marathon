@@ -3,7 +3,7 @@
 import ammonite.ops._
 import ammonite.ops.ImplicitWd._
 
-import $file.aws
+import $ivy.`com.amazonaws:aws-java-sdk:1.11.129`
 import $file.fileUtil
 
 import com.amazonaws.services.s3._
