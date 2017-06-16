@@ -240,6 +240,7 @@ class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
       val leadingProcess: LocalMarathon = leadingServerProcess(leader.leader)
       val client = leadingProcess.client
 
+      When("Creating an app")
       val app = App("/deleteappandbackupintegrationtest", cmd = Some("sleep 1000"))
       val result = marathon.createAppV2(app)
       result should be(Created)
@@ -248,7 +249,7 @@ class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
       val oldInstances = client.tasks(app.id.toPath).value
       oldInstances should have size 1 withClue "Required instance was not started"
 
-      When("calling DELETE /v2/leader with backups")
+      And("calling DELETE /v2/leader with backups")
       val abdicateResult = client.abdicateWithBackup("/Users/junterstein/Desktop/tmp/b7")
 
       Then("the request should be successful")
@@ -269,13 +270,12 @@ class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
       val leadingProcess2: LocalMarathon = leadingServerProcess(leader2.leader)
       val client2 = leadingProcess2.client
 
-      // delete the app
-      val delete = marathon.deleteApp(app.id.toPath, force = true)
+      And("delete the app")
+      val delete = client2.deleteApp(app.id.toPath)
       delete should be(OK)
-      waitForDeployment(delete)
 
-      When("calling DELETE /v2/leader with backups")
-      val abdicateResult2 = client.abdicateWithBackup("/Users/junterstein/Desktop/tmp/b7")
+      When("calling DELETE /v2/leader with backups again")
+      val abdicateResult2 = client2.abdicateWithBackup("/Users/junterstein/Desktop/tmp/b7")
 
       Then("the request should be successful")
       abdicateResult2 should be(OK) withClue "Leader was not abdicated"
@@ -283,15 +283,22 @@ class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
 
       And("the leader must have died")
       WaitTestSupport.waitUntil("the former leading marathon process dies", 30.seconds) {
-        !leadingProcess.isRunning()
+        !leadingProcess2.isRunning()
       }
-      leadingProcess.stop() // already stopped, but still need to clear old state
+      leadingProcess2.stop() // already stopped, but still need to clear old state
 
       And("the leader must have changed")
       WaitTestSupport.waitUntil("the leader changes") {
         val result = firstRunningProcess.client.leader()
         result.code == 200 && result.value != leader
       }
+
+      val leader3 = firstRunningProcess.client.leader().value
+      val leadingProcess3: LocalMarathon = leadingServerProcess(leader3.leader)
+      val client3 = leadingProcess3.client
+
+      And("app should not be available")
+      client3.app(app.id.toPath) should be(NotFound)
 
       // allow ZK session for former leader to timeout before proceeding
       Thread.sleep((zkTimeout * 2.5).toLong)
