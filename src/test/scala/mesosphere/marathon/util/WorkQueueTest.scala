@@ -80,17 +80,23 @@ class WorkQueueTest extends UnitTest {
       val lock = KeyedLock[String]("abc", Int.MaxValue)
       val sem = new Semaphore(0)
       val counter = new AtomicInteger(0)
-      lock.blocking("1") {
+      val notBlocked = lock.blocking("1") {
         sem.acquire()
+        counter.incrementAndGet()
       }
       val blocked = lock.blocking("1") {
         counter.incrementAndGet()
       }
+
       counter.get() should equal(0)
+
       blocked.isReadyWithin(1.millis) should be(false)
+      notBlocked.isReadyWithin(1.millis) should be(false)
       sem.release()
-      blocked.futureValue should be(1)
-      counter.get() should equal(1)
+
+      notBlocked.futureValue should be(1)
+      blocked.futureValue should be(2)
+      counter.get() should equal(2)
     }
     "allow two work items on different keys" in {
       val lock = KeyedLock[String]("abc", Int.MaxValue)

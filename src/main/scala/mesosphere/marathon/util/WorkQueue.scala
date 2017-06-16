@@ -1,13 +1,9 @@
 package mesosphere.marathon
 package util
 
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicInteger
-
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.{ ExecutionContext, Future, Promise }
-import mesosphere.marathon.functional._
 
 import scala.collection.mutable
 
@@ -35,51 +31,85 @@ import scala.collection.mutable
   */
 case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int, parent: Option[WorkQueue] = None) extends StrictLogging {
   require(maxConcurrent > 0 && maxQueueLength >= 0)
-  private case class WorkItem[T](f: () => Future[T], ctx: ExecutionContext, promise: Promise[T])
-  private val queue = new ConcurrentLinkedQueue[WorkItem[_]]()
-  private val totalOutstanding = new AtomicInteger(0)
 
-  private def run[T](workItem: WorkItem[T]): Future[T] = {
+  private case class WorkItem[T](f: () => Future[T], ctx: ExecutionContext, promise: Promise[T])
+
+  // Our queue of work. We synchronize on the whole class so this queue does not have to be threadsafe.
+  private val queue = mutable.Queue[WorkItem[_]]()
+
+  // Number of open work slots. This work queue is not using worker threads but triggers the next future once on
+  // finishes. If now slot is left we queue. If no work is left we open up a slot.
+  private var openSlots: Int = maxConcurrent
+
+  /**
+    * Runs future that is wrapped in tht work item.
+    *
+    * When the work item finished processing we execute the next if one is in the queue. Otherwise we just stop. A new
+    * run might be triggered by [[WorkQueue.apply]].
+    *
+    * @param workItem
+    * @tparam T
+    * @return Future that completes when work item fished.
+    */
+  private def run[T](workItem: WorkItem[T]): Future[T] = synchronized {
     logger.debug(s"Run work item in $name queue")
     parent.fold {
       workItem.ctx.execute(new Runnable {
         override def run(): Unit = {
           val future = workItem.f()
-          future.onComplete(_ => executeNextIfPossible())(workItem.ctx)
+          future.onComplete { _ =>
+            // This might block for a short time if something is put into the queue. This is fine for two reasons
+            // * The time it takes to complete apply() is very short.
+            // * The blocking does not take place in this thread. So we won't deadlock.
+            executeNextIfPossible()
+          }(workItem.ctx)
           workItem.promise.completeWith(future)
         }
       })
       workItem.promise.future
-    } { p =>
+    } { p: WorkQueue =>
       p(workItem.f())(workItem.ctx)
     }
   }
 
-  private def executeNextIfPossible(): Unit = {
-    Option(queue.poll()).fold[Unit] {
-      totalOutstanding.decrementAndGet()
-    } { item =>
+  /**
+    * Executes the next work item or opens up a working slot for [[WorkQueue.apply]]
+    */
+  private def executeNextIfPossible(): Unit = synchronized {
+    if (queue.isEmpty) {
+      openSlots += 1
+    } else {
       logger.debug(s"Process next item in $name queue")
-      run(item)
+      run(queue.dequeue())
     }
   }
 
-  def blocking[T](f: => T)(implicit ctx: ExecutionContext): Future[T] = {
+  def blocking[T](f: => T)(implicit ctx: ExecutionContext): Future[T] = synchronized {
     apply(Future(concurrent.blocking(f)))
   }
 
-  def apply[T](f: => Future[T])(implicit ctx: ExecutionContext): Future[T] = {
-    val previouslyOutstanding = totalOutstanding.getAndUpdate((total: Int) => if (total < maxConcurrent) total + 1 else total)
-    if (previouslyOutstanding < maxConcurrent) {
+  /**
+    * Put work into the queue.
+    *
+    * @param f Future that is executed. Note that it's passed by name.
+    * @param ctx
+    * @tparam T
+    * @return Future that completes when f completed.
+    */
+  def apply[T](f: => Future[T])(implicit ctx: ExecutionContext): Future[T] = synchronized {
+    if (openSlots > 0) {
+      // We have an open slot so start processing the work immediately.
+      openSlots -= 1
       val promise = Promise[T]()
       run(WorkItem(() => f, ctx, promise))
     } else {
+      // No work slot is left. Let's queue the work if possible.
       if (queue.size + 1 > maxQueueLength) {
         Future.failed(new IllegalStateException(s"$name queue may not exceed $maxQueueLength entries"))
       } else {
         logger.debug(s"Queue item in $name")
         val promise = Promise[T]()
-        queue.add(WorkItem(() => f, ctx, promise))
+        queue += WorkItem(() => f, ctx, promise)
         promise.future
       }
     }
