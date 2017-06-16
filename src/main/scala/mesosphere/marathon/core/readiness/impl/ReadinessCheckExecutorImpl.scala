@@ -5,11 +5,11 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.`Content-Type`
 import akka.http.scaladsl.client.RequestBuilding
-import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.model.{ MediaTypes, StatusCodes, HttpResponse => AkkaHttpResponse }
 import akka.stream.Materializer
 import mesosphere.marathon.core.readiness.ReadinessCheckExecutor.ReadinessCheckSpec
 import mesosphere.marathon.core.readiness.{ HttpResponse, ReadinessCheckExecutor, ReadinessCheckResult }
+import mesosphere.marathon.util.FutureTimeoutLike
 import org.slf4j.LoggerFactory
 import rx.lang.scala.Observable
 
@@ -26,7 +26,6 @@ private[readiness] class ReadinessCheckExecutorImpl(implicit actorSystem: ActorS
 
   import mesosphere.marathon.core.async.ExecutionContexts.global
   private[this] val log = LoggerFactory.getLogger(getClass)
-  private[this] val defaultSettings = ConnectionPoolSettings(actorSystem)
 
   override def execute(readinessCheckSpec: ReadinessCheckSpec): Observable[ReadinessCheckResult] = {
     def singleCheck(): Future[ReadinessCheckResult] = executeSingleCheck(readinessCheckSpec)
@@ -79,10 +78,8 @@ private[readiness] class ReadinessCheckExecutorImpl(implicit actorSystem: ActorS
   }
 
   private[impl] def akkaHttpGet(check: ReadinessCheckSpec): Future[AkkaHttpResponse] = {
-    val connectionSetting = defaultSettings.connectionSettings.withConnectingTimeout(check.timeout)
     Http().singleRequest(
-      request = RequestBuilding.Get(check.url),
-      settings = defaultSettings.withConnectionSettings(connectionSetting)
-    )
+      request = RequestBuilding.Get(check.url)
+    ).withTimeout(check.timeout)
   }
 }

@@ -14,6 +14,7 @@ import com.typesafe.sslconfig.akka.AkkaSSLConfig
 import mesosphere.marathon.core.health._
 import mesosphere.marathon.core.instance.Instance
 import mesosphere.marathon.state.{ AppDefinition, Timestamp }
+import mesosphere.marathon.util.FutureTimeoutLike
 import mesosphere.util.ThreadPoolContext
 
 import scala.concurrent.Future
@@ -91,7 +92,8 @@ class HealthCheckWorkerActor(implicit mat: Materializer) extends Actor with Stri
     logger.debug(s"Checking the health of [$url] for instance=${instance.instanceId} via HTTP")
 
     Http().singleRequest(
-      RequestBuilding.Get(url)).map { response =>
+      RequestBuilding.Get(url)
+    ).withTimeout(check.timeout).map { response =>
         response.discardEntityBytes() //forget about the body
         if (acceptableResponses.contains(response.status.intValue())) {
           Some(Healthy(instance.instanceId, instance.runSpecVersion))
@@ -149,7 +151,8 @@ class HealthCheckWorkerActor(implicit mat: Materializer) extends Actor with Stri
 
     Http().singleRequest(
       RequestBuilding.Get(url),
-      connectionContext = ConnectionContext.https(disabledSslContext, sslConfig = Some(disabledSslConfig))).map { response =>
+      connectionContext = ConnectionContext.https(disabledSslContext, sslConfig = Some(disabledSslConfig))
+    ).withTimeout(check.timeout).map { response =>
         response.discardEntityBytes() // forget about the body
         if (acceptableResponses.contains(response.status.intValue())) {
           Some(Healthy(instance.instanceId, instance.runSpecVersion))
