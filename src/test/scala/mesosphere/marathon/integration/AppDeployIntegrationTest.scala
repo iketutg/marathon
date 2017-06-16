@@ -325,13 +325,10 @@ class AppDeployIntegrationTest extends AkkaIntegrationTest with EmbeddedMarathon
       marathon.listAppsInBaseGroup.value should have size 0
     }
 
-    "an unhealthy app fails to deploy -- more details" in {
+    "an unhealthy app fails to deploy because health checks takes too long to pass" in {
       Given("a new app that is not healthy")
       val id = appId()
-      registerAppProxyHealthCheck(id, "v1", state = true).withHealthAction(_ => {
-        println("MUUUUH")
-        Thread.sleep(20000)
-      })
+      registerAppProxyHealthCheck(id, "v1", state = true).withHealthAction(_ => Thread.sleep(20000))
       val app = appProxy(id, "v1", instances = 1, healthCheck = Some(appProxyHealthCheck().copy(timeoutSeconds = 2)))
 
       When("The app is deployed")
