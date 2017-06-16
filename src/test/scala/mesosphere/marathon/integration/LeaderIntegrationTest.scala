@@ -217,3 +217,84 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
     }
   }
 }
+
+// Regression test for MARATHON-7525
+@IntegrationTest
+class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
+
+  val zkTimeout = 2000L
+  override val marathonArgs: Map[String, String] = Map(
+    "zk_timeout" -> s"$zkTimeout"
+  )
+
+  override val numAdditionalMarathons = 2
+
+  "Abdicating a leader" should {
+    "keep all running apps alive" in {
+
+      Given("a leader")
+      WaitTestSupport.waitUntil("a leader has been elected") { firstRunningProcess.client.leader().code == 200 }
+
+      // pick the leader to communicate with because it's the only known survivor
+      val leader = firstRunningProcess.client.leader().value
+      val leadingProcess: LocalMarathon = leadingServerProcess(leader.leader)
+      val client = leadingProcess.client
+
+      val app = App("/deleteappandbackupintegrationtest", cmd = Some("sleep 1000"))
+      val result = marathon.createAppV2(app)
+      result should be(Created)
+      extractDeploymentIds(result) should have size 1 withClue "Deployment was not triggered"
+      waitForDeployment(result)
+      val oldInstances = client.tasks(app.id.toPath).value
+      oldInstances should have size 1 withClue "Required instance was not started"
+
+      When("calling DELETE /v2/leader with backups")
+      val abdicateResult = client.abdicateWithBackup("/Users/junterstein/Desktop/tmp/b7")
+
+      Then("the request should be successful")
+      abdicateResult should be (OK) withClue "Leader was not abdicated"
+      (abdicateResult.entityJson \ "message").as[String] should be ("Leadership abdicated")
+
+      And("the leader must have died")
+      WaitTestSupport.waitUntil("the former leading marathon process dies", 30.seconds) { !leadingProcess.isRunning() }
+      leadingProcess.stop() // already stopped, but still need to clear old state
+
+      And("the leader must have changed")
+      WaitTestSupport.waitUntil("the leader changes") {
+        val result = firstRunningProcess.client.leader()
+        result.code == 200 && result.value != leader
+      }
+
+      val leader2 = firstRunningProcess.client.leader().value
+      val leadingProcess2: LocalMarathon = leadingServerProcess(leader2.leader)
+      val client2 = leadingProcess2.client
+
+      // delete the app
+      val delete = marathon.deleteApp(app.id.toPath, force = true)
+      delete should be(OK)
+      waitForDeployment(delete)
+
+      When("calling DELETE /v2/leader with backups")
+      val abdicateResult2 = client.abdicateWithBackup("/Users/junterstein/Desktop/tmp/b7")
+
+      Then("the request should be successful")
+      abdicateResult2 should be(OK) withClue "Leader was not abdicated"
+      (abdicateResult2.entityJson \ "message").as[String] should be("Leadership abdicated")
+
+      And("the leader must have died")
+      WaitTestSupport.waitUntil("the former leading marathon process dies", 30.seconds) {
+        !leadingProcess.isRunning()
+      }
+      leadingProcess.stop() // already stopped, but still need to clear old state
+
+      And("the leader must have changed")
+      WaitTestSupport.waitUntil("the leader changes") {
+        val result = firstRunningProcess.client.leader()
+        result.code == 200 && result.value != leader
+      }
+
+      // allow ZK session for former leader to timeout before proceeding
+      Thread.sleep((zkTimeout * 2.5).toLong)
+    }
+  }
+}
