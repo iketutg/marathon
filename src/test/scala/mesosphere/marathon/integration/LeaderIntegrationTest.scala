@@ -1,6 +1,8 @@
 package mesosphere.marathon
 package integration
 
+import java.io.File
+
 import mesosphere.AkkaIntegrationTest
 import mesosphere.marathon.integration.facades.MarathonFacade
 import mesosphere.marathon.integration.facades.MarathonFacade.extractDeploymentIds
@@ -275,7 +277,9 @@ class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
       delete should be(OK)
 
       When("calling DELETE /v2/leader with backups again")
-      val abdicateResult2 = client2.abdicateWithBackup("/Users/junterstein/Desktop/tmp/b7")
+      val tmpBackupFile = File.createTempFile("marathon", "DeleteAppAndBackupIntegrationTest")
+      val abdicateResult2 = client2.abdicateWithBackup(tmpBackupFile.getAbsolutePath)
+      tmpBackupFile.delete()
 
       Then("the request should be successful")
       abdicateResult2 should be(OK) withClue "Leader was not abdicated"
