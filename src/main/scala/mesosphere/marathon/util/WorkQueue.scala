@@ -24,12 +24,8 @@ import scala.collection.mutable
   * @param maxConcurrent The maximum number of work items allowed in parallel.
   * @param maxQueueLength The maximum number of items allowed to queue up, if the length is exceeded,
   *                       the future will fail with an IllegalStateException
-  * @param parent An optional parent queue (this allows stacking). This can come in handy with [[KeyedLock]]
-  *               so that you can say "lock on this key" and "limit the total number of outstanding to 32".
-  *               There can be other use cases as well, where you may want to limit the number of
-  *               total operations for a class to X while limiting a particular operation to Y where Y < X.
   */
-case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int, parent: Option[WorkQueue] = None) extends StrictLogging {
+case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int) extends StrictLogging {
   require(maxConcurrent > 0 && maxQueueLength >= 0)
 
   private case class WorkItem[T](f: () => Future[T], ctx: ExecutionContext, promise: Promise[T])
@@ -39,7 +35,7 @@ case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int, pare
 
   // Number of open work slots. This work queue is not using worker threads but triggers the next future once on
   // finishes. If now slot is left we queue. If no work is left we open up a slot.
-  private var openSlots: Int = maxConcurrent
+  private var openSlotsCount: Int = maxConcurrent
 
   /**
     * Runs future that is wrapped in tht work item.
@@ -51,33 +47,32 @@ case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int, pare
     * @tparam T
     * @return Future that completes when work item fished.
     */
-  private def run[T](workItem: WorkItem[T]): Future[T] = synchronized {
+  private def run[T](workItem: WorkItem[T]): Unit = synchronized {
     logger.debug(s"Run work item in $name queue")
-    parent.fold {
-      workItem.ctx.execute(new Runnable {
-        override def run(): Unit = {
-          val future = workItem.f()
-          future.onComplete { _ =>
-            // This might block for a short time if something is put into the queue. This is fine for two reasons
-            // * The time it takes to complete apply() is very short.
-            // * The blocking does not take place in this thread. So we won't deadlock.
-            executeNextIfPossible()
-          }(workItem.ctx)
-          workItem.promise.completeWith(future)
-        }
-      })
-      workItem.promise.future
-    } { p: WorkQueue =>
-      p(workItem.f())(workItem.ctx)
-    }
+    workItem.ctx.execute(new Runnable {
+      override def run(): Unit = {
+        val future = workItem.f()
+        future.onComplete { _ =>
+          // This might block for a short time if something is put into the queue. This is fine for two reasons
+          // * The time it takes to complete apply() is very short.
+          // * The blocking does not take place in this thread. So we won't deadlock.
+          executeNextIfPossible()
+        }(workItem.ctx)
+        workItem.promise.completeWith(future)
+      }
+    })
   }
 
   /**
-    * Executes the next work item or opens up a working slot for [[WorkQueue.apply]]
+    * Executes the next work item or opens up a work slot for [[WorkQueue.apply]].
+    *
+    * If the queue is empty we free up a slot by decrementing the count.
+    * If the queue is not empty we use our current slot to process the next item. The slot stays blocked and thus the
+    * open slots count does not change.
     */
   private def executeNextIfPossible(): Unit = synchronized {
     if (queue.isEmpty) {
-      openSlots += 1
+      openSlotsCount += 1
     } else {
       logger.debug(s"Process next item in $name queue")
       run(queue.dequeue())
@@ -97,11 +92,12 @@ case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int, pare
     * @return Future that completes when f completed.
     */
   def apply[T](f: => Future[T])(implicit ctx: ExecutionContext): Future[T] = synchronized {
-    if (openSlots > 0) {
+    if (openSlotsCount > 0) {
       // We have an open slot so start processing the work immediately.
-      openSlots -= 1
+      openSlotsCount -= 1
       val promise = Promise[T]()
       run(WorkItem(() => f, ctx, promise))
+      promise.future
     } else {
       // No work slot is left. Let's queue the work if possible.
       if (queue.size + 1 > maxQueueLength) {
@@ -118,9 +114,9 @@ case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int, pare
 
 /**
   * Allows serialized execution of futures based on a Key (specifically the Hash of that key).
-  * Does not block any threads and will schedule any items on a parent queue, if supplied.
+  * Does not block any threads.
   */
-case class KeyedLock[K](name: String, maxQueueLength: Int, parent: Option[WorkQueue] = None) {
+case class KeyedLock[K](name: String, maxQueueLength: Int) {
   private val queues = Lock(mutable.HashMap.empty[K, WorkQueue])
 
   def blocking[T](key: K)(f: => T)(implicit ctx: ExecutionContext): Future[T] = {
@@ -128,6 +124,6 @@ case class KeyedLock[K](name: String, maxQueueLength: Int, parent: Option[WorkQu
   }
 
   def apply[T](key: K)(f: => Future[T])(implicit ctx: ExecutionContext): Future[T] = {
-    queues(_.getOrElseUpdate(key, WorkQueue(s"$name-$key", maxConcurrent = 1, maxQueueLength, parent))(f))
+    queues(_.getOrElseUpdate(key, WorkQueue(s"$name-$key", maxConcurrent = 1, maxQueueLength))(f))
   }
 }
