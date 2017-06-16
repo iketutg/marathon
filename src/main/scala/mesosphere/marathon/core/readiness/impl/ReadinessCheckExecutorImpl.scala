@@ -9,7 +9,7 @@ import akka.http.scaladsl.model.{ MediaTypes, StatusCodes, HttpResponse => AkkaH
 import akka.stream.Materializer
 import mesosphere.marathon.core.readiness.ReadinessCheckExecutor.ReadinessCheckSpec
 import mesosphere.marathon.core.readiness.{ HttpResponse, ReadinessCheckExecutor, ReadinessCheckResult }
-import mesosphere.marathon.util.FutureTimeoutLike
+import mesosphere.marathon.util.Timeout
 import org.slf4j.LoggerFactory
 import rx.lang.scala.Observable
 
@@ -26,6 +26,7 @@ private[readiness] class ReadinessCheckExecutorImpl(implicit actorSystem: ActorS
 
   import mesosphere.marathon.core.async.ExecutionContexts.global
   private[this] val log = LoggerFactory.getLogger(getClass)
+  private implicit val scheduler = actorSystem.scheduler
 
   override def execute(readinessCheckSpec: ReadinessCheckSpec): Observable[ReadinessCheckResult] = {
     def singleCheck(): Future[ReadinessCheckResult] = executeSingleCheck(readinessCheckSpec)
@@ -78,8 +79,8 @@ private[readiness] class ReadinessCheckExecutorImpl(implicit actorSystem: ActorS
   }
 
   private[impl] def akkaHttpGet(check: ReadinessCheckSpec): Future[AkkaHttpResponse] = {
-    Http().singleRequest(
+    Timeout(check.timeout)(Http().singleRequest(
       request = RequestBuilding.Get(check.url)
-    ).withTimeout(check.timeout)
+    ))
   }
 }
