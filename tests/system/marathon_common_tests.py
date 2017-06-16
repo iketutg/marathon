@@ -1049,6 +1049,7 @@ def test_metric_endpoint(marathon_service_name):
     response = http.get("{}metrics".format(
         shakedown.dcos_service_url(marathon_service_name)))
     assert response.status_code == 200
+    print(response.json()['gauges'])
     assert response.json()['gauges']['jvm.memory.heap.max']['value'] is not None
 
 
