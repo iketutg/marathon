@@ -204,15 +204,13 @@ class ZkPersistenceStore(
 
   @SuppressWarnings(Array("all")) // async/await
   override protected def rawStore[V](id: ZkId, v: ZkSerialized): Future[Done] = {
-    logger.debug(s"Storing inder $id")
     retry(s"ZkPersistenceStore::store($id, $v)") {
       async {
         await(client.setData(id.path, v.bytes).asTry) match {
           case Success(_) =>
-            logger.debug(s"Successfully stored under $id")
             Done
           case Failure(e: NoNodeException) =>
-            logger.warn(s"Node for $id not found. Creating node now", e)
+            logger.debug(s"Node for $id not found. Creating node now", e)
             await(limitRequests(client.create(
               id.path,
               creatingParentContainersIfNeeded = true, data = Some(v.bytes))).asTry) match {

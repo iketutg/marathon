@@ -33,12 +33,12 @@ case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int) exte
   // Our queue of work. We synchronize on the whole class so this queue does not have to be threadsafe.
   private val queue = mutable.Queue[WorkItem[_]]()
 
-  // Number of open work slots. This work queue is not using worker threads but triggers the next future once on
+  // Number of open work slots. This work queue is not using worker threads but triggers the next future once one
   // finishes. If now slot is left we queue. If no work is left we open up a slot.
   private var openSlotsCount: Int = maxConcurrent
 
   /**
-    * Runs future that is wrapped in tht work item.
+    * Runs future that is wrapped in the work item.
     *
     * When the work item finished processing we execute the next if one is in the queue. Otherwise we just stop. A new
     * run might be triggered by [[WorkQueue.apply]].
@@ -48,7 +48,6 @@ case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int) exte
     * @return Future that completes when work item fished.
     */
   private def run[T](workItem: WorkItem[T]): Unit = synchronized {
-    logger.debug(s"Run work item in $name queue")
     workItem.ctx.execute(new Runnable {
       override def run(): Unit = {
         val future = workItem.f()
@@ -74,7 +73,6 @@ case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int) exte
     if (queue.isEmpty) {
       openSlotsCount += 1
     } else {
-      logger.debug(s"Process next item in $name queue")
       run(queue.dequeue())
     }
   }
@@ -101,9 +99,9 @@ case class WorkQueue(name: String, maxConcurrent: Int, maxQueueLength: Int) exte
     } else {
       // No work slot is left. Let's queue the work if possible.
       if (queue.size + 1 > maxQueueLength) {
+        logger.warn(s"$name queue exceeded $maxQueueLength")
         Future.failed(new IllegalStateException(s"$name queue may not exceed $maxQueueLength entries"))
       } else {
-        logger.debug(s"Queue item in $name")
         val promise = Promise[T]()
         queue += WorkItem(() => f, ctx, promise)
         promise.future

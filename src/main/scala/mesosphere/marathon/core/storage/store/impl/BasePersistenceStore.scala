@@ -138,7 +138,6 @@ abstract class BasePersistenceStore[K, Category, Serialized](implicit
     val unversionedId = ir.toStorageId(id, None)
     lock(id.toString) {
       async {
-        logger.debug(s"Store in ${id}")
         val serialized = await(Marshal(v).to[Serialized])
         val storeCurrent = rawStore(unversionedId, serialized)
         val storeVersioned = if (ir.hasVersions) {

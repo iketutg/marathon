@@ -6,16 +6,10 @@ import java.util.concurrent.{ CountDownLatch, Semaphore }
 
 import mesosphere.UnitTest
 import mesosphere.marathon.core.async.ExecutionContexts.global
-import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{ Minutes, Span }
 
 import scala.concurrent.duration._
-import scala.concurrent.{ ExecutionContext, Future }
 
-class WorkQueueTest extends UnitTest with Eventually {
-
-  override val timeLimit = Span(10, Minutes)
-  override implicit lazy val patienceConfig: PatienceConfig = PatienceConfig(timeout = Span(10, Minutes))
+class WorkQueueTest extends UnitTest {
 
   "WorkQueue" should {
     "cap the maximum number of concurrent operations" in {
@@ -74,36 +68,6 @@ class WorkQueueTest extends UnitTest with Eventually {
       counter.get() should equal (100)
     }
 
-    "synchronize and run all tasks" in {
-      val queue = WorkQueue("huge", 1, Int.MaxValue)
-      val counter = new AtomicInteger()
-
-      val numProcessors = Runtime.getRuntime.availableProcessors() / 4
-      val workItems: Int = 1000000
-      val latch = new CountDownLatch(numProcessors)
-      (1 to numProcessors).foreach { p =>
-        Future {
-
-          println(s"$p out of $numProcessors")
-
-          // All futures should start at the same time
-          latch.countDown()
-          latch.await()
-
-          (1 to workItems).foreach { i =>
-            queue(Future {
-              if (i % 100 == 0) {
-                println(s"Processing $p - $i")
-              }
-              counter.incrementAndGet()
-            })
-          }
-        }
-      }
-      eventually {
-        counter.get() should equal (workItems * numProcessors)
-      }
-    }
   }
   "KeyedLock" should {
     "allow exactly one work item per key" in {
