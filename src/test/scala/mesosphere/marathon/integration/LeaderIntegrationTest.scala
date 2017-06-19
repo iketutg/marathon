@@ -9,7 +9,7 @@ import mesosphere.marathon.integration.facades.MarathonFacade.extractDeploymentI
 import mesosphere.marathon.integration.setup._
 import mesosphere.marathon.raml.App
 import mesosphere.marathon.state.PathId._
-import org.scalatest.time.{Seconds, Span}
+import org.scalatest.time.{ Seconds, Span }
 
 import scala.concurrent.duration._
 
@@ -225,7 +225,7 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
 @IntegrationTest
 class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
 
-  override implicit lazy val patienceConfig: PatienceConfig = PatienceConfig(timeout = Span(10, Seconds))
+  override implicit lazy val patienceConfig: PatienceConfig = PatienceConfig(timeout = Span(30, Seconds))
 
   val zkTimeout = 2000L
   override val marathonArgs: Map[String, String] = Map(
