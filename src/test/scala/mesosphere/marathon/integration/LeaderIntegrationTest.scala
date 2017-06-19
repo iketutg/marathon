@@ -255,7 +255,9 @@ class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
       oldInstances should have size 1 withClue "Required instance was not started"
 
       And("calling DELETE /v2/leader with backups")
-      val abdicateResult = client.abdicateWithBackup("/Users/junterstein/Desktop/tmp/b7")
+      val tmpBackupFile = File.createTempFile("marathon", "DeleteAppAndBackupIntegrationTest")
+      val abdicateResult = client.abdicateWithBackup(tmpBackupFile.getAbsolutePath)
+      tmpBackupFile.delete()
 
       Then("the request should be successful")
       abdicateResult should be (OK) withClue "Leader was not abdicated"
@@ -280,9 +282,9 @@ class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
       delete should be(OK)
 
       When("calling DELETE /v2/leader with backups again")
-      val tmpBackupFile = File.createTempFile("marathon", "DeleteAppAndBackupIntegrationTest")
-      val abdicateResult2 = client2.abdicateWithBackup(tmpBackupFile.getAbsolutePath)
-      tmpBackupFile.delete()
+      val tmpBackupFile2 = File.createTempFile("marathon", "DeleteAppAndBackupIntegrationTest")
+      val abdicateResult2 = client2.abdicateWithBackup(tmpBackupFile2.getAbsolutePath)
+      tmpBackupFile2.delete()
 
       Then("the request should be successful")
       abdicateResult2 should be(OK) withClue "Leader was not abdicated"
