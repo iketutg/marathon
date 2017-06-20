@@ -225,8 +225,6 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
 @IntegrationTest
 class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
 
-  override implicit lazy val patienceConfig: PatienceConfig = PatienceConfig(timeout = Span(30, Seconds))
-
   val zkTimeout = 2000L
   override val marathonArgs: Map[String, String] = Map(
     "zk_timeout" -> s"$zkTimeout"
@@ -268,7 +266,7 @@ class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
       leadingProcess.stop() // already stopped, but still need to clear old state
 
       And("the leader must have changed")
-      WaitTestSupport.waitUntil("the leader changes") {
+      WaitTestSupport.waitUntil("the leader changes", 30.seconds) {
         val result = firstRunningProcess.client.leader()
         result.code == 200 && result.value != leader
       }
@@ -297,7 +295,7 @@ class DeleteAppAndBackupIntegrationTest extends LeaderIntegrationTest {
       leadingProcess2.stop() // already stopped, but still need to clear old state
 
       And("the leader must have changed")
-      WaitTestSupport.waitUntil("the leader changes") {
+      WaitTestSupport.waitUntil("the leader changes", 30.seconds) {
         val result = firstRunningProcess.client.leader()
         result.code == 200 && result.value != leader
       }
