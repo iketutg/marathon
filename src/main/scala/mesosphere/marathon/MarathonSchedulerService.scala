@@ -12,7 +12,7 @@ import com.google.common.util.concurrent.AbstractExecutionThreadService
 import mesosphere.marathon.MarathonSchedulerActor._
 import mesosphere.marathon.core.base.toRichRuntime
 import mesosphere.marathon.core.deployment.{ DeploymentManager, DeploymentPlan, DeploymentStepInfo }
-import mesosphere.marathon.core.election.{ ElectionCandidate, ElectionService }
+import mesosphere.marathon.core.election.{ ElectionService, LeadershipTransition }
 import mesosphere.marathon.core.group.GroupManager
 import mesosphere.marathon.core.heartbeat._
 import mesosphere.marathon.core.instance.Instance
@@ -76,7 +76,7 @@ class MarathonSchedulerService @Inject() (
   deploymentManager: DeploymentManager,
   @Named("schedulerActor") schedulerActor: ActorRef,
   @Named(ModuleNames.MESOS_HEARTBEAT_ACTOR) mesosHeartbeatActor: ActorRef)(implicit mat: Materializer)
-    extends AbstractExecutionThreadService with ElectionCandidate with DeploymentService {
+    extends AbstractExecutionThreadService with DeploymentService {
 
   import mesosphere.marathon.core.async.ExecutionContexts.global
 
@@ -108,6 +108,8 @@ class MarathonSchedulerService @Inject() (
   // be reused (i.e. once stopped they can't be started again. Thus,
   // we have to allocate a new driver before each run or after each stop.
   var driver: Option[SchedulerDriver] = None
+  @volatile private[this] var _leaderReady = false
+  def leaderReady = _leaderReady
 
   implicit val timeout: Timeout = 5.seconds
 
@@ -151,8 +153,11 @@ class MarathonSchedulerService @Inject() (
   override def run(): Unit = {
     log.info("Beginning run")
 
-    // The first thing we do is offer our leadership.
-    electionService.offerLeadership(this)
+    // ElectionService immediately offers leadership. We want to register to listen for when leadership was acquired
+    electionService.leaderTransitionEvents.runForeach {
+      case LeadershipTransition.ObtainedLeadership => startLeadership()
+      case LeadershipTransition.LostLeadership => stopLeadership()
+    }
 
     // Block on the latch which will be countdown only when shutdown has been
     // triggered. This is to prevent run()
@@ -196,7 +201,7 @@ class MarathonSchedulerService @Inject() (
 
   //Begin ElectionCandidate interface
 
-  override def startLeadership(): Unit = synchronized {
+  def startLeadership(): Unit = synchronized {
     log.info("As new leader running the driver")
 
     // execute tasks, only the leader is allowed to
@@ -249,9 +254,11 @@ class MarathonSchedulerService @Inject() (
         log.info("Finished postDriverRuns callbacks")
       }
     }
+    _leaderReady = true
   }
 
-  override def stopLeadership(): Unit = synchronized {
+  def stopLeadership(): Unit = synchronized {
+    _leaderReady = false
     // invoked by election service upon loss of leadership (state transitioned to Idle)
     log.info("Lost leadership")
 

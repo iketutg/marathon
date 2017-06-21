@@ -7,14 +7,13 @@ import javax.ws.rs.core.Response
 import javax.ws.rs.{ GET, Path }
 
 import akka.Done
-import akka.actor.ActorRef
 import com.google.common.util.concurrent.Service
 import com.google.inject._
 import kamon.Kamon
 import mesosphere.chaos.http.{ HttpConf, HttpModule, HttpService }
 import mesosphere.chaos.metrics.MetricsModule
 import mesosphere.marathon.api._
-import mesosphere.marathon.core.election.{ ElectionCandidate, ElectionService }
+import mesosphere.marathon.core.election.ElectionService
 import mesosphere.marathon.util.Lock
 import mesosphere.util.{ CallerThreadExecutionContext, PortAllocator }
 import org.rogach.scallop.ScallopConf
@@ -124,12 +123,9 @@ object ForwarderService {
         override def isLeader: Boolean = elected
         override def leaderHostPort: Option[String] = leader
         override def localHostPort: String = ???
-
-        def offerLeadership(candidate: ElectionCandidate): Unit = ???
-        def abdicateLeadership(): Unit = ???
-
-        override def subscribe(self: ActorRef): Unit = ???
-        override def unsubscribe(self: ActorRef): Unit = ???
+        override def leaderStateEvents = ???
+        override def leaderTransitionEvents = ???
+        override def abdicateLeadership(): Unit = ???
       }
 
       bind(classOf[ElectionService]).toInstance(electionService)
