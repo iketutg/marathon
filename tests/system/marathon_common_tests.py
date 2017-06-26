@@ -17,7 +17,7 @@ from common import (app, app_mesos, block_port, cluster_info, ensure_mom, group,
                     docker_env_set)
 from dcos import http, marathon, mesos
 from shakedown import (dcos_1_8, dcos_1_9, dcos_1_10, dcos_version_less_than, private_agents, required_private_agents,
-                       marathon_1_5, marthon_version_less_than, mom_version_less_than, marathon_1_4, ee_version)
+                       marthon_version_less_than, mom_version_less_than, marathon_1_4, ee_version)
 from urllib.parse import urljoin
 from utils import fixture_dir, get_resource
 
@@ -477,8 +477,7 @@ def test_https_health_check_healthy(protocol='MESOS_HTTPS'):
         SSL (using self-signed certificate) and listens on 443
     """
     # marathon version captured here will work for root and mom
-    if marthon_version_less_than('1.4.2'):
-        pytest.skip()
+    requires_marathon_version('1.4.2')
 
     client = marathon.create_client()
 
@@ -982,8 +981,7 @@ def test_private_repository_mesos_app():
     """ Test private docker registry with mesos containerizer using "config" container's image field."""
 
     # marathon version captured here will work for root and mom
-    if marthon_version_less_than('1.5'):
-        pytest.skip()
+    requires_marathon_version('1.5')
 
     username = os.environ['DOCKER_HUB_USERNAME']
     password = os.environ['DOCKER_HUB_PASSWORD']
@@ -1105,6 +1103,20 @@ def add_container_network(app_def, network, port=7777):
     del app_def['portDefinitions']
     del app_def['requirePorts']
     return app_def
+
+
+def requires_marathon_version(version):
+    """ This python module is for testing root and MoM marathons.   The @marathon_1_5
+        annotation works only for the root marathon.   The context switching necessary
+        for switching the marathons occurs after the evaluation of the pytestmark.
+        This function is used to ensure the correct version of marathon regardless
+        of root or mom.
+    """
+    # marathon version captured here will work for root and mom
+    if marthon_version_less_than(version):
+        pytest.skip()
+
+
 
 
 @pytest.mark.parametrize("test_type, get_pinger_app, dns_format", [
