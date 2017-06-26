@@ -978,9 +978,12 @@ def test_private_repository_docker_app():
 
 # TODO: D729 will provide a secrets fixture to use here
 @pytest.mark.skipif("docker_env_set()")
-@marathon_1_5
 def test_private_repository_mesos_app():
     """ Test private docker registry with mesos containerizer using "config" container's image field."""
+
+    # marathon version captured here will work for root and mom
+    if marthon_version_less_than('1.5'):
+        pytest.skip()
 
     username = os.environ['DOCKER_HUB_USERNAME']
     password = os.environ['DOCKER_HUB_PASSWORD']
