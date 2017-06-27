@@ -543,7 +543,7 @@ def test_health_failed_check():
     shakedown.deployment_wait()
 
     # after network failure is restored.  The task returns and is a new task ID
-    @retrying.retry(wait_fixed=1000, stop_max_delay=3000)
+    @retrying.retry(wait_fixed=1000, stop_max_delay=3000, retry_on_exception=ignore_on_exception)
     def check_health_message():
         new_tasks = client.get_tasks('/healthy')
         assert new_tasks[0]['id'] != tasks[0]['id']
