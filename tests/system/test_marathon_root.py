@@ -7,6 +7,7 @@
 import common
 import shakedown
 import uuid
+import pytest
 
 # this is intentional import *
 # it imports all the common test_ methods which are to be tested on root and mom
@@ -17,6 +18,8 @@ from marathon_pods_tests import *
 
 from shakedown import (masters, required_masters, public_agents, required_public_agents,
                         dcos_1_9, marthon_version_less_than, marthon_version_less_than)
+
+from dcos import marathon
 
 from datetime import timedelta
 
@@ -481,7 +484,9 @@ def test_app_secret_env_var(secret_fixture):
     assert data.rstrip() == secret_value
 
 
+@pytest.mark.skip('need: https://github.com/mesosphere/dcos-enterprise/pull/1124')
 @dcos_1_9
+# TODO: should this be limited to enterprise?  the enterprise-cli seems to indicate that.
 def test_pod_secret_env_var(secret_fixture):
     # Install enterprise-cli since it's needed to create secrets
     if not common.is_enterprise_cli_package_installed():
@@ -542,7 +547,9 @@ def test_pod_secret_env_var(secret_fixture):
     assert data.rstrip() == secret_value
 
 
+@pytest.mark.skip('need: https://github.com/mesosphere/dcos-enterprise/pull/1124')
 @pytest.mark.skipif('marthon_version_less_than("1.5")')
+# TODO: should this be limited to enterprise?  the enterprise-cli seems to indicate that.
 def test_pod_file_based_secret(secret_fixture):
     # Install enterprise-cli since it's needed to create secrets
     if not common.is_enterprise_cli_package_installed():
