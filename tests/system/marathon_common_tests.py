@@ -697,7 +697,7 @@ def test_launch_container_with_persistent_volume():
     client.restart_app(app_id)
     shakedown.deployment_wait()
 
-    @retrying.retry(wait_fixed=1000, stop_max_delay=10000)
+    @retrying.retry(wait_fixed=1000, stop_max_delay=10000, retry_on_exception=ignore_on_exception)
     def check_task_recovery():
         tasks = client.get_tasks(app_id)
         assert len(tasks) == 1
