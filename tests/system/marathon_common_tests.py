@@ -1050,7 +1050,7 @@ def test_metric_endpoint(marathon_service_name):
         shakedown.dcos_service_url(marathon_service_name)))
     assert response.status_code == 200
     print(response.json()['gauges'])
-    assert response.json()['gauges']['jvm.memory.heap.max']['value'] is not None
+    assert response.json()['gauges']['service.mesosphere.marathon.app.count'] is not None
 
 
 @dcos_1_9
