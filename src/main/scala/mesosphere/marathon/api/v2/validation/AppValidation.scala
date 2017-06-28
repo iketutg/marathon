@@ -5,6 +5,7 @@ import java.util.regex.Pattern
 
 import com.wix.accord._
 import com.wix.accord.dsl._
+import mesosphere.marathon.api.v2.AppNormalization
 import mesosphere.marathon.api.v2.Validation.{ featureEnabled, _ }
 import mesosphere.marathon.core.externalvolume.ExternalVolumes
 import mesosphere.marathon.raml._
@@ -367,7 +368,7 @@ trait AppValidation {
     }
   )
 
-  def validateCanonicalAppAPI(enabledFeatures: Set[String]): Validator[App] = forAll(
+  def validateCanonicalAppAPI(enabledFeatures: Set[String], normalizationConfig: AppNormalization.Config): Validator[App] = forAll(
     validBasicAppDefinition(enabledFeatures),
     validator[App] { app =>
       PathId(app.id) as "id" is (PathId.pathIdValidator and PathId.absolutePathValidator and PathId.nonEmptyPath)
@@ -380,6 +381,11 @@ trait AppValidation {
     },
     isTrue("portDefinitions are only allowed with host-networking") { app =>
       !(app.networks.exists(_.mode != NetworkMode.Host) && app.portDefinitions.exists(_.nonEmpty))
+    },
+    isTrue("network name must be specified when container network is selected") { app =>
+      val result = app.networks.forall(c => c.mode != NetworkMode.Container || c.name.isDefined || normalizationConfig.defaultNetworkName.isDefined)
+      println(s"TEST: $result - ${app.id}")
+      result
     }
   )
 

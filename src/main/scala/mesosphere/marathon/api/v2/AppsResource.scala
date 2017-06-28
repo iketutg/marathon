@@ -408,7 +408,7 @@ object AppsResource {
   def appNormalization(config: NormalizationConfig): Normalization[raml.App] = Normalization { app =>
     validateOrThrow(app)(AppValidation.validateOldAppAPI)
     val migrated = AppNormalization.forDeprecated(config.config).normalized(app)
-    validateOrThrow(migrated)(AppValidation.validateCanonicalAppAPI(config.enabledFeatures))
+    validateOrThrow(migrated)(AppValidation.validateCanonicalAppAPI(config.enabledFeatures, config.config))
     AppNormalization(config.config).normalized(migrated)
   }
 

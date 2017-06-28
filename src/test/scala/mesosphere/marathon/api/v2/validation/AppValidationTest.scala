@@ -3,6 +3,7 @@ package api.v2.validation
 
 import com.wix.accord.Validator
 import com.wix.accord.scalatest.ResultMatchers
+import mesosphere.marathon.api.v2.AppNormalization
 import mesosphere.marathon.raml._
 import mesosphere.{ UnitTest, ValidationTestLike }
 
@@ -10,8 +11,9 @@ class AppValidationTest extends UnitTest with ResultMatchers with ValidationTest
 
   import Normalization._
 
-  implicit val basicValidator: Validator[App] = AppValidation.validateCanonicalAppAPI(Set.empty)
-  implicit val withSecretsValidator: Validator[App] = AppValidation.validateCanonicalAppAPI(Set("secrets"))
+  val config = AppNormalization.Configuration(None, "mesos-bridge-name")
+  implicit val basicValidator: Validator[App] = AppValidation.validateCanonicalAppAPI(Set.empty, config)
+  implicit val withSecretsValidator: Validator[App] = AppValidation.validateCanonicalAppAPI(Set("secrets"), config)
 
   "File based secrets validation" when {
     "file based secret is used when secret feature is not enabled" should {
