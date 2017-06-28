@@ -9,7 +9,6 @@ import mesosphere.marathon.integration.facades.MarathonFacade.extractDeploymentI
 import mesosphere.marathon.integration.setup._
 import mesosphere.marathon.raml.App
 import mesosphere.marathon.state.PathId._
-import org.scalatest.time.{ Seconds, Span }
 
 import scala.concurrent.duration._
 
@@ -190,6 +189,72 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
 
       When("calling DELETE /v2/leader")
       val abdicateResult = client.abdicate()
+
+      Then("the request should be successful")
+      abdicateResult should be (OK) withClue "Leader was not abdicated"
+      (abdicateResult.entityJson \ "message").as[String] should be ("Leadership abdicated")
+
+      And("the leader must have died")
+      WaitTestSupport.waitUntil("the former leading marathon process dies", 30.seconds) { !leadingProcess.isRunning() }
+      leadingProcess.stop() // already stopped, but still need to clear old state
+
+      And("the leader must have changed")
+      WaitTestSupport.waitUntil("the leader changes") {
+        val result = firstRunningProcess.client.leader()
+        result.code == 200 && result.value != leader
+      }
+
+      val newLeader = firstRunningProcess.client.leader().value
+      val newLeadingProcess: LocalMarathon = leadingServerProcess(newLeader.leader)
+      val newClient = newLeadingProcess.client
+
+      // we should have one survived instance
+      newClient.app(app.id.toPath).value.app.instances should be(1) withClue "Previously started app did not survive the abdication"
+      val newInstances = newClient.tasks(app.id.toPath).value
+      newInstances should have size 1 withClue "Previously started one instance did not survive the abdication"
+      newInstances.head.id should be (oldInstances.head.id) withClue "During abdication we started a new instance, instead keeping the old one."
+
+      // allow ZK session for former leader to timeout before proceeding
+      Thread.sleep((zkTimeout * 2.5).toLong)
+    }
+  }
+}
+
+// Regression test for MARATHON-7565
+@IntegrationTest
+class BackupRestoreIntegrationTest extends LeaderIntegrationTest {
+
+  val zkTimeout = 2000L
+  override val marathonArgs: Map[String, String] = Map(
+    "zk_timeout" -> s"$zkTimeout"
+  )
+
+  override val numAdditionalMarathons = 2
+
+  "Abdicating a leader" should {
+    "keep all running apps alive" in {
+
+      Given("a leader")
+      WaitTestSupport.waitUntil("a leader has been elected") { firstRunningProcess.client.leader().code == 200 }
+
+      // pick the leader to communicate with because it's the only known survivor
+      val leader = firstRunningProcess.client.leader().value
+      val leadingProcess: LocalMarathon = leadingServerProcess(leader.leader)
+      val client = leadingProcess.client
+
+      val app1 = App("/backuprestoreintegrationtest1", cmd = Some("sleep 1000"))
+      val app2 = App("/backuprestoreintegrationtest2", cmd = Some("sleep 1000"))
+      val result = marathon.createAppV2(app1)
+      result should be(Created)
+      extractDeploymentIds(result) should have size 1 withClue "Deployment was not triggered"
+      waitForDeployment(result)
+      val oldInstances = client.tasks(app1.id.toPath).value
+      oldInstances should have size 1 withClue "Required instance was not started"
+
+      And("calling DELETE /v2/leader with backups")
+      val tmpBackupFile = File.createTempFile("marathon", "BackupRestoreIntegrationTest")
+      val abdicateResult = client.abdicateWithBackup(tmpBackupFile.getAbsolutePath)
+      tmpBackupFile.delete()
 
       Then("the request should be successful")
       abdicateResult should be (OK) withClue "Leader was not abdicated"
