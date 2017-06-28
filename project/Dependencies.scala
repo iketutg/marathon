@@ -72,7 +72,9 @@ object Dependencies {
     )
 
   val benchmark = Seq(
-    Test.jmh
+    Test.jmh,
+    Test.mockito,
+    Test.scalatest
   )
 }
 
