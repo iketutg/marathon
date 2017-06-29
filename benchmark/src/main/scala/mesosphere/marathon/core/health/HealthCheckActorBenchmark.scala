@@ -4,7 +4,7 @@ package core.health
 import akka.actor.{ ActorRef, ActorSystem, PoisonPill }
 import akka.event.EventStream
 import akka.stream.ActorMaterializer
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 
 import mesosphere.marathon.core.condition.Condition
 import mesosphere.marathon.core.health.impl.HealthCheckActor
@@ -33,6 +33,9 @@ class HealthCheckActorBenchmark extends MockitoSugar {
 
   @Benchmark
   def checkHealth(hole: Blackhole): Unit = {
+    val healthChecks = 20
+    val latch = new CountDownLatch(healthChecks)
+
     val killService = mock[KillService]
     val eventBus = mock[EventStream]
 
@@ -61,7 +64,13 @@ class HealthCheckActorBenchmark extends MockitoSugar {
     val instanceTracker = new InstanceTracker {
       override def specInstancesSync(pathId: PathId) = ???
       override def specInstances(pathId: PathId)(implicit ec: ExecutionContext): Future[Seq[Instance]] = {
-        Future.successful(Seq(instanceMock))
+        Future {
+          // We want all futures to fire at the same time.
+          println(s"Health check: ${latch.getCount} of $healthChecks")
+          latch.countDown()
+          latch.await()
+          Seq(instanceMock)
+        }
       }
 
       override def instance(instanceId: Instance.Id) = Future.successful(Some(instanceMock))
@@ -78,15 +87,15 @@ class HealthCheckActorBenchmark extends MockitoSugar {
     }
 
     val healthCheck = MarathonHttpHealthCheck(
-      gracePeriod = 2.seconds,
-      interval = 2.seconds,
+      gracePeriod = 1.seconds,
+      interval = 1.seconds,
       timeout = 5.seconds,
       port = Some(8080)
     )
 
     val ref = system.actorOf(HealthCheckActor.props(app, killService, healthCheck, instanceTracker, eventBus))
 
-    Thread.sleep(1.minutes.toMillis)
+    Thread.sleep(10.minutes.toMillis)
     ref.tell(PoisonPill, ActorRef.noSender)
   }
 
