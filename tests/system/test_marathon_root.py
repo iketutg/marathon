@@ -384,6 +384,7 @@ def test_marathon_backup_and_check_apps(marathon_service_name):
 
 
 @pytest.mark.skipif('marthon_version_less_than("1.5")')
+@pytest.mark.skipif("ee_version() is None")
 def test_app_file_based_secret(secret_fixture):
     # Install enterprise-cli since it's needed to create secrets
     # if not common.is_enterprise_cli_package_installed():
