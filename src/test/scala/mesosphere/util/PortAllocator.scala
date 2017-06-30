@@ -15,16 +15,13 @@ object PortAllocator extends StrictLogging {
   // The Internet Assigned Numbers Authority (IANA) suggests the range 49152 to 65535  for dynamic or private ports.
   // Many Linux kernels use the port range 32768 to 61000.
 
-  // We reserve 1000 ephemeral ports for Marathon/Zk/Mesos Master/Mesos Agent processes and use the rest as port
-  // resources for Mesos Agents e.g. in `MesosCluster`
+  // We reserve 1000 ephemeral ports for Marathon/Zk/Mesos Master/Mesos Agent processes to listen on:
   val EPHEMERAL_PORT_START = 32768
-  val EPHEMERAL_PORT_MAX = 33768
-  // IMPORTANT: Those ranges should NOT overlap
-  val PORT_RANGE_START = 33769
+  val EPHEMERAL_PORT_MAX = EPHEMERAL_PORT_START + 1000
+  // and use the rest of the range as ports resources for mesos agents to offer e.g. --resources="ports:[10000-110000]"
+  // IMPORTANT: These two ranges should NOT overlap!
+  val PORT_RANGE_START = EPHEMERAL_PORT_MAX + 1
   val PORT_RANGE_MAX = 65535
-
-  // Default port range size, typically given out to mesos agents
-  val DEFAULT_PORT_RANGE_SIZE = 100
 
   // We use 2 different atomic counters: one for ephemeral ports and one for port ranges.
   private val ephemeralPorts: AtomicInteger = new AtomicInteger(EPHEMERAL_PORT_START)
@@ -56,7 +53,7 @@ object PortAllocator extends StrictLogging {
     socket.getLocalPort
   }
 
-  def portsRange(step: Int = DEFAULT_PORT_RANGE_SIZE): (Int, Int) = {
+  def portsRange(step: Int = 100): (Int, Int) = {
     val from = rangePorts.getAndAdd(step + 1) // port resources in mesos are inclusive
     val to = from + step
     if (to > PORT_RANGE_MAX) throw new RuntimeException("Port range is depleted.")
