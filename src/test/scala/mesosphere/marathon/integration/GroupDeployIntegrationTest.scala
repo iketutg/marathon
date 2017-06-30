@@ -306,9 +306,9 @@ class GroupDeployIntegrationTest extends AkkaIntegrationTest with EmbeddedMarath
       val group = GroupUpdate(Option(gid.toString), Option(Set(db, service, frontend)))
 
       When("The group gets deployed")
-      var ping = Map.empty[String, DateTime]
+      var ping = Map.empty[String, Long]
       def storeFirst(health: IntegrationHealthCheck): Unit = {
-        if (!ping.contains(health.appId.toString)) ping += health.appId.toString -> DateTime.now
+        if (!ping.contains(health.appId.toString)) ping += health.appId.toString -> System.currentTimeMillis()
       }
       registerAppProxyHealthCheck(PathId(db.id), "v1", state = true).withHealthAction(storeFirst)
       registerAppProxyHealthCheck(PathId(service.id), "v1", state = true).withHealthAction(storeFirst)
