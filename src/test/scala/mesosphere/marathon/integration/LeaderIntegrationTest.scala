@@ -274,7 +274,7 @@ class BackupRestoreIntegrationTest extends LeaderIntegrationTest {
       leadingProcess1.stop() // already stopped, but still need to clear old state
 
       And("the leader must have changed")
-      WaitTestSupport.waitUntil("the leader changes") {
+      WaitTestSupport.waitUntil("the leader changes", 30.seconds) {
         val result = firstRunningProcess.client.leader()
         result.code == 200 && result.value != leader1
       }
@@ -312,7 +312,7 @@ class BackupRestoreIntegrationTest extends LeaderIntegrationTest {
       (abdicateResult.entityJson \ "message").as[String] should be ("Leadership abdicated")
 
       And("the leader must have changed")
-      WaitTestSupport.waitUntil("the leader changes") {
+      WaitTestSupport.waitUntil("the leader changes", 30.seconds) {
         val result = firstRunningProcess.client.leader()
         result.code == 200 && result.value != leader2
       }
