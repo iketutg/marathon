@@ -1,10 +1,12 @@
 package mesosphere.marathon
 package core.health
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.{ ActorRef, ActorSystem, PoisonPill }
 import akka.event.EventStream
 import akka.stream.ActorMaterializer
-import java.util.concurrent.{ CountDownLatch, TimeUnit }
+import java.util.concurrent.TimeUnit
 
 import mesosphere.marathon.core.condition.Condition
 import mesosphere.marathon.core.health.impl.HealthCheckActor
@@ -19,7 +21,7 @@ import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
 import scala.concurrent.Await
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
 import org.scalatest.mockito.MockitoSugar
 
@@ -33,8 +35,9 @@ class HealthCheckActorBenchmark extends MockitoSugar {
 
   @Benchmark
   def checkHealth(hole: Blackhole): Unit = {
-    val healthChecks = 20
-    val latch = new CountDownLatch(healthChecks)
+    val healthChecks = 100
+    val count = new AtomicInteger()
+    val go = Promise[Seq[Instance]]
 
     val killService = mock[KillService]
     val eventBus = mock[EventStream]
@@ -64,13 +67,9 @@ class HealthCheckActorBenchmark extends MockitoSugar {
     val instanceTracker = new InstanceTracker {
       override def specInstancesSync(pathId: PathId) = ???
       override def specInstances(pathId: PathId)(implicit ec: ExecutionContext): Future[Seq[Instance]] = {
-        Future {
-          // We want all futures to fire at the same time.
-          println(s"Health check: ${latch.getCount} of $healthChecks")
-          latch.countDown()
-          latch.await()
-          Seq(instanceMock)
-        }
+        val c = count.incrementAndGet()
+        println(s"Health check $c of $healthChecks")
+        go.future
       }
 
       override def instance(instanceId: Instance.Id) = Future.successful(Some(instanceMock))
@@ -94,6 +93,11 @@ class HealthCheckActorBenchmark extends MockitoSugar {
     )
 
     val ref = system.actorOf(HealthCheckActor.props(app, killService, healthCheck, instanceTracker, eventBus))
+
+    while (count.get() < healthChecks) {
+      Thread.sleep(2.seconds.toMillis)
+    }
+    go.success(Seq(instanceMock))
 
     Thread.sleep(10.minutes.toMillis)
     ref.tell(PoisonPill, ActorRef.noSender)
