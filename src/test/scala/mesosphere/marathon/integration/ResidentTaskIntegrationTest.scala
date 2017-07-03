@@ -106,8 +106,7 @@ class ResidentTaskIntegrationTest extends AkkaIntegrationTest with EmbeddedMarat
     "resident task is launched completely on reserved resources" in new Fixture {
       Given("A resident app")
       val app = residentApp(
-        id = appId("resident-task-is-launched-completely-on-reserved-resources"),
-        portDefinitions = Seq.empty /* prevent problems by randomized port assignment */ )
+        id = appId("resident-task-is-launched-completely-on-reserved-resources"))
 
       When("A task is launched")
       createSuccessfully(app)
@@ -284,7 +283,7 @@ class ResidentTaskIntegrationTest extends AkkaIntegrationTest with EmbeddedMarat
       cmd: String = "sleep 1000",
       instances: Int = 1,
       backoffDuration: FiniteDuration = 1.hour,
-      portDefinitions: Seq[PortDefinition] = PortDefinitions(0),
+      portDefinitions: Seq[PortDefinition] = Seq.empty, /* prevent problems by randomized port assignment */
       constraints: Set[Seq[String]] = Set.empty): App = {
 
       val persistentVolume: AppVolume = AppPersistentVolume(
