@@ -288,11 +288,11 @@ class BackupRestoreIntegrationTest extends LeaderIntegrationTest {
       deleteApp1Response should be(OK)
       waitForDeployment(deleteApp1Response)
 
-      val updateApp2Response = client2.updateApp(app2.id.toPath, AppUpdate(cmd = Some("sleep 50")))
+      val updateApp2Response = client2.updateApp(app2.id.toPath, AppUpdate(cmd = Some("sleep 2000")))
       updateApp2Response should be(OK)
       waitForDeployment(updateApp2Response)
 
-      val updateApp4Response = client2.updateApp(app2.id.toPath, AppUpdate(cmd = Some("sleep 50"), instances = Some(3)))
+      val updateApp4Response = client2.updateApp(app2.id.toPath, AppUpdate(cmd = Some("sleep 1500"), instances = Some(3)))
       updateApp4Response should be(OK)
       waitForDeployment(updateApp4Response)
 
