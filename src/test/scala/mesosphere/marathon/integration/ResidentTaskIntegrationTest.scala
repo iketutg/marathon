@@ -168,6 +168,7 @@ class ResidentTaskIntegrationTest extends AkkaIntegrationTest with EmbeddedMarat
       all.count(_.suspended) shouldBe 5
     }
 
+    // Fails occasionally because: https://issues.apache.org/jira/browse/MESOS-7752
     "Restart" in new Fixture {
       Given("a resident app with 5 instances")
       val app = createSuccessfully(
