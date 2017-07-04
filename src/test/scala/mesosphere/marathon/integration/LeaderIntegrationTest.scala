@@ -178,6 +178,7 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
       val leader = firstRunningProcess.client.leader().value
       val leadingProcess: LocalMarathon = leadingServerProcess(leader.leader)
       val client = leadingProcess.client
+      waitForSSEConnect()
 
       val app = App("/keepappsrunningduringabdicationintegrationtest", cmd = Some("sleep 1000"))
       val result = marathon.createAppV2(app)
@@ -207,6 +208,7 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
       val newLeader = firstRunningProcess.client.leader().value
       val newLeadingProcess: LocalMarathon = leadingServerProcess(newLeader.leader)
       val newClient = newLeadingProcess.client
+      waitForSSEConnect()
 
       // we should have one survived instance
       newClient.app(app.id.toPath).value.app.instances should be(1) withClue "Previously started app did not survive the abdication"
