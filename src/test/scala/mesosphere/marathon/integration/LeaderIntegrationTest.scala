@@ -178,6 +178,7 @@ class KeepAppsRunningDuringAbdicationIntegrationTest extends LeaderIntegrationTe
       val leader = firstRunningProcess.client.leader().value
       val leadingProcess: LocalMarathon = leadingServerProcess(leader.leader)
       val client = leadingProcess.client
+      waitForSSEConnect()
 
       val app = App("/keepappsrunningduringabdicationintegrationtest", cmd = Some("sleep 1000"))
       val result = marathon.createAppV2(app)
