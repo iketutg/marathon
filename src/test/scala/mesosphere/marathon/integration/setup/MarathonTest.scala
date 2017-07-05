@@ -475,13 +475,13 @@ trait MarathonTest extends HealthCheckEndpoint with StrictLogging with ScalaFutu
       killAppProxies()
     } catch {
       case e =>
-        logger.error("Clean up failed with", e)
+        logger.error("Clean up failed with: ", e)
         // It's a source of hard to find bugs if we just move on to the next test, that expects a "clean state".
         // We should fail loud and proud here and find out why the clean-up fails.
         throw e
     }
 
-    logger.info(">>> CLEAN UP finished!")
+    logger.info("... CLEAN UP finished <<<")
   }
 
   def waitForHealthCheck(check: IntegrationHealthCheck, maxWait: FiniteDuration = patienceConfig.timeout.toMillis.millis) = {
