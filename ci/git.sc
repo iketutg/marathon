@@ -6,6 +6,7 @@ import ammonite.ops._
 import ammonite.ops.ImplicitWd._
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.internal.storage.file.FileRepository
+import org.eclipse.jgit.merge.MergeStrategy
 import org.eclipse.jgit.transport.{ RefSpec, URIish }
 import upickle._
 
@@ -37,13 +38,26 @@ def upgrade(url: String, sha1: String): Unit = {
 @main
 def checkout(): Unit = {
   val dcosRepoPath = pwd / 'dcos
-  val buildinfoPath = dcosRepoPath / 'packages/ 'marathon / "buildinfo.json"
 
   rm! dcosRepoPath
 
+  // TODO: For the implementation we'll use git@github.com:mesosphere/dcos.git
   val git = Git.cloneRepository()
-    .setURI("https://github.com/mesosphere/dcos.git")
+    .setURI("git@github.com:jeschkies/dcos.git")
+    .setBranch("marathon/latest")
     .setDirectory(dcosRepoPath.toIO)
+    .call()
+
+  // Update with latest DC/OS
+  val remoteAddCmd = git.remoteAdd()
+  remoteAddCmd.setName("dcos")
+  remoteAddCmd.setUri(new URIish("https://github.com/dcos/dcos.git"))
+  remoteAddCmd.call()
+
+  git.pull()
+    .setRemote("dcos")
+    .setRemoteBranchName("master")
+    .setStrategy(MergeStrategy.THEIRS)
     .call()
 }
 
@@ -57,15 +71,8 @@ def commitAndPush(version: String = "unknown"): Unit = {
   git.add().addFilepattern("packages/marathon").call()
   val commit = git.commit().setMessage(s"Upgrade Marathon version to $version").call()
 
-  val cmd = git.remoteAdd()
-  cmd.setName("jeschkies")
-  cmd.setUri( new URIish("git@github.com:jeschkies/dcos.git") )
-  cmd.call()
-
   git.push()
-    .setRemote("jeschkies")
     .setRefSpecs(new RefSpec(s"${commit.getId.getName}:refs/heads/marathon/latest"))
-    .setForce(true) // We may want to rebase before and not force push.
     .call()
 }
 
@@ -73,8 +80,8 @@ def commitAndPush(version: String = "unknown"): Unit = {
 def all(): Unit = {
   checkout()
   upgrade(
-    "https://s3.amazonaws.com/downloads.mesosphere.io/marathon/snapshots/marathon-1.5.0-SNAPSHOT-637-gb17f6fe.tgz",
-    "eb2665203afe5611e14c2bdbbf367917eece19db"
+    "https://s3.amazonaws.com/downloads.mesosphere.io/marathon/snapshots/marathon-1.5.0-SNAPSHOT-638-g52d5f15.tgz",
+    "54178036606e94c2835b7d4a64018f984c2c6d3a"
   )
-  commitAndPush("1.5.0-SNAPSHOT-637-gb17f6fe")
+  commitAndPush("1.5.0-SNAPSHOT-638-g52d5f15")
 }
