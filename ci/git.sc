@@ -73,7 +73,7 @@ def commitAndPush(version: String = "unknown"): Unit = {
 def all(): Unit = {
   checkout()
   upgrade(
-    "https:s3://downloads.mesosphere.io/marathon/snapshots/marathon-1.5.0-SNAPSHOT-637-gb17f6fe.tgz",
+    "https://s3.amazonaws.com/downloads.mesosphere.io/marathon/snapshots/marathon-1.5.0-SNAPSHOT-637-gb17f6fe.tgz",
     "eb2665203afe5611e14c2bdbbf367917eece19db"
   )
   commitAndPush("1.5.0-SNAPSHOT-637-gb17f6fe")
