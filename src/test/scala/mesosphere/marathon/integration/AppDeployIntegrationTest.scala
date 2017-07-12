@@ -673,7 +673,7 @@ class AppDeployIntegrationTest extends AkkaIntegrationTest with EmbeddedMarathon
 
       Then("old deployment should be canceled and rollback-deployment succeed")
       // Both deployment events may come out of order
-      waitForEventMatching(s"waiting for canceled $deploymentId and successful ${rollbackId}") { event =>
+      waitForEventMatching(s"waiting for canceled $deploymentId and successful $rollbackId") { event =>
         (event.eventType == "deployment_failed" && event.id == deploymentId) ||
           (event.eventType == "deployment_success" && event.id == rollbackId)
       }
