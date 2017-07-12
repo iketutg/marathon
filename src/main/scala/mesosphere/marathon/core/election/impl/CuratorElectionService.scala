@@ -11,6 +11,7 @@ import akka.event.EventStream
 import com.typesafe.scalalogging.StrictLogging
 import mesosphere.marathon.core.base._
 import mesosphere.marathon.core.election.{ ElectionCandidate, ElectionService, LocalLeadershipEvent }
+import mesosphere.marathon.util.{ CrashStrategy, JvmExitsCrashStrategy }
 import org.apache.curator.framework.api.ACLProvider
 import org.apache.curator.framework.imps.CuratorFrameworkState
 import org.apache.curator.framework.recipes.leader.{ LeaderLatch, LeaderLatchListener }
@@ -151,7 +152,7 @@ class CuratorElectionService(
       if (exit) {
         logger.info("Terminating due to leadership abdication or failure")
         system.scheduler.scheduleOnce(exitTimeout) {
-          Runtime.getRuntime.asyncExit()
+          crashStrategy.crash()
         }
       }
     }
@@ -262,4 +263,7 @@ class CuratorElectionService(
       leadershipAcquired()
     }
   }
+
+  private var crashStrategy: CrashStrategy = JvmExitsCrashStrategy
+  def setCrashStrategy(crashStrategy: CrashStrategy): Unit = this.crashStrategy = crashStrategy
 }
