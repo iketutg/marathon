@@ -3,7 +3,7 @@ package core.election
 
 import akka.actor.ActorSystem
 import akka.event.EventStream
-import mesosphere.marathon.core.base.LifecycleState
+import mesosphere.marathon.core.base.{ JvmExitsCrashStrategy, LifecycleState }
 import mesosphere.marathon.core.election.impl.{ CuratorElectionService, PseudoElectionService }
 
 class ElectionModule(
@@ -21,7 +21,8 @@ class ElectionModule(
           hostPort,
           system,
           eventStream,
-          lifecycleState
+          lifecycleState,
+          JvmExitsCrashStrategy
         )
       case backend: Option[String] =>
         throw new IllegalArgumentException(s"Leader election backend $backend not known!")
@@ -31,7 +32,8 @@ class ElectionModule(
       hostPort,
       system,
       eventStream,
-      lifecycleState
+      lifecycleState,
+      JvmExitsCrashStrategy
     )
   }
 }

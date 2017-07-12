@@ -9,7 +9,6 @@ import akka.event.EventStream
 import com.typesafe.scalalogging.StrictLogging
 import mesosphere.marathon.core.base._
 import mesosphere.marathon.core.election.{ ElectionCandidate, ElectionService, LocalLeadershipEvent }
-import mesosphere.marathon.util.{ CrashStrategy, JvmExitsCrashStrategy }
 
 import scala.async.Async
 import scala.concurrent.ExecutionContext
@@ -26,7 +25,8 @@ class PseudoElectionService(
   hostPort: String,
   system: ActorSystem,
   override val eventStream: EventStream,
-  lifecycleState: LifecycleState)
+  lifecycleState: LifecycleState,
+  crashStrategy: CrashStrategy)
     extends ElectionService with ElectionServiceMetrics with ElectionServiceEventStream with StrictLogging {
 
   system.registerOnTermination {
@@ -127,7 +127,4 @@ class PseudoElectionService(
       eventStream.publish(LocalLeadershipEvent.Standby)
     }
   }
-
-  @volatile private var crashStrategy: CrashStrategy = JvmExitsCrashStrategy
-  def setCrashStrategy(crashStrategy: CrashStrategy): Unit = this.crashStrategy = crashStrategy
 }

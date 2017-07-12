@@ -3,21 +3,22 @@ package core.election.impl
 
 import akka.event.EventStream
 import mesosphere.AkkaUnitTest
-import mesosphere.marathon.core.base.{ LifecycleState, RichRuntime }
+import mesosphere.marathon.core.base.{ CrashStrategy, LifecycleState }
 import mesosphere.marathon.core.election.ElectionCandidate
-import mesosphere.marathon.test.{ ExitDisabledTest, Mockito }
 import mesosphere.marathon.util.ScallopStub
+import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._
 
-class CuratorElectionServiceTest extends AkkaUnitTest with Mockito with ExitDisabledTest {
+class CuratorElectionServiceTest extends AkkaUnitTest with Eventually {
   "The CuratorElectionService" when {
 
     val conf: MarathonConf = mock[MarathonConf]
     val eventStream: EventStream = mock[EventStream]
     val hostPort = "80"
 
-    val service = new CuratorElectionService(conf, hostPort, system, eventStream, LifecycleState.Ignore)
+    val crashStrategy = mock[CrashStrategy]
+    val service = new CuratorElectionService(conf, hostPort, system, eventStream, LifecycleState.Ignore, crashStrategy)
 
     "given an unresolvable hostname" should {
 
@@ -33,7 +34,7 @@ class CuratorElectionServiceTest extends AkkaUnitTest with Mockito with ExitDisa
       "shut Marathon down on a NonFatal" in {
         val candidate = mock[ElectionCandidate]
         service.offerLeadership(candidate)
-        exitCalled(RichRuntime.FatalErrorSignal).futureValue should be(true)
+        eventually { verify(crashStrategy).crash() }
       }
     }
   }

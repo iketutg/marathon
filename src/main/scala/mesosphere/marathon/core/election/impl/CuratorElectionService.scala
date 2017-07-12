@@ -11,7 +11,6 @@ import akka.event.EventStream
 import com.typesafe.scalalogging.StrictLogging
 import mesosphere.marathon.core.base._
 import mesosphere.marathon.core.election.{ ElectionCandidate, ElectionService, LocalLeadershipEvent }
-import mesosphere.marathon.util.{ CrashStrategy, JvmExitsCrashStrategy }
 import org.apache.curator.framework.api.ACLProvider
 import org.apache.curator.framework.imps.CuratorFrameworkState
 import org.apache.curator.framework.recipes.leader.{ LeaderLatch, LeaderLatchListener }
@@ -38,7 +37,8 @@ class CuratorElectionService(
   hostPort: String,
   system: ActorSystem,
   override val eventStream: EventStream,
-  lifecycleState: LifecycleState)
+  lifecycleState: LifecycleState,
+  crashStrategy: CrashStrategy)
     extends ElectionService with ElectionServiceMetrics with ElectionServiceEventStream with StrictLogging {
 
   system.registerOnTermination {
@@ -263,7 +263,4 @@ class CuratorElectionService(
       leadershipAcquired()
     }
   }
-
-  private var crashStrategy: CrashStrategy = JvmExitsCrashStrategy
-  def setCrashStrategy(crashStrategy: CrashStrategy): Unit = this.crashStrategy = crashStrategy
 }
