@@ -80,7 +80,7 @@ class MetricsTimerTest extends AkkaUnitTest {
       timer.histogram.collect(CollectionContext(10)).numberOfMeasurements should be(1L)
     }
 
-    "measure a failed source" in {
+    "measure a failed source" taggedAs mesosphere.KnownIssue("MARATHON-7574") in {
       val timer = HistogramTimer("timer")
       val promise = Promise[Int]()
       val sourceFuture = timer.forSource(Source.fromFuture(promise.future)).runWith(Sink.seq)

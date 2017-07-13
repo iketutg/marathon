@@ -85,9 +85,10 @@ def comment(revisionId: String, msg: String): Unit = {
  *
  * @param phid PHID passed by Harbormaster.
  * @param status The status of the build for Phabriactor. Must be "fail" or "pass"
+ * @return the parsed test results.
  */
 @main
-def reportTestResults(phid: String, status: String): Unit = {
+def reportTestResults(phid: String, status: String): Js.Arr = {
   require("fail" == status || "pass" == status)
 
   try {
@@ -108,9 +109,12 @@ def reportTestResults(phid: String, status: String): Unit = {
       "unit" -> joinedTestResults
     )
     execute("harbormaster.sendmessage", parameters)
+
+    joinedTestResults
   } catch {
     case NonFatal(e) =>
       utils.printlnWithColor(s"Could not upload test results: ${e.getMessage}", utils.Colors.BrightRed)
+      Js.Arr()
   }
 }
 
@@ -131,11 +135,18 @@ def reportSuccess(
   buildUrl: String,
   buildTag: String): Unit = {
 
+  val testResults = reportTestResults(phId, "pass")
+
+  // Collect unsound, i.e. canceled, tests
+  val unsoundTests = testResults.value
+    .collect { case test: Js.Obj if test("result").value == "unsound" => test  }
+  val hasUnsoundTests = unsoundTests.nonEmpty
+
   // Construct message
   val marathonPackage: Path = ((ls! pwd / 'target / 'universal) |? (_.ext == "tgz")).head
   val marathonPackageChecksum = read! pwd / 'target / 'universal / s"${marathonPackage.last}.sha1"
 
-  val msg = s"""
+  var msg = s"""
     |(NOTE)\u2714 Build of $diffId completed [[ $buildUrl | $buildTag ]].
     |
     | You can create a DC/OS with your patched Marathon by creating a new pull
@@ -145,14 +156,30 @@ def reportSuccess(
     |   "url": "https://downloads.mesosphere.io/marathon/snapshots/${marathonPackage.last}",
     |   "sha1": "${marathonPackageChecksum}"
     |
-    |= ＼\\ ٩( ᐛ )و /／ =
     |""".stripMargin
+
+  if (!hasUnsoundTests) {
+    msg += "= ＼\\ ٩( ᐛ )و /／ ="
+  } else {
+    val unsoundTestsList: String = unsoundTests.foldLeft("") { (msg:String, test: Js.Obj) =>
+      msg + s"""\n- `${test("name").value}`"""
+    }
+
+    msg += s"""
+    |WARNING: The following tests failed and have been marked as canceled.
+    |Are you sure you want to land this patch?
+    | $unsoundTestsList
+    |
+    |Anyhow, check the [[ $buildUrl/testReport | skipped tests ]] on Jenkins for details and decide for yourself.
+    |
+    |= ¯\\_(ツ)_/¯ =
+    |""".stripMargin
+  }
 
   // We accept and comment in two different calls because Phabriactor won't
   // apply the comment if the diff is already accepted.
   accept(revisionId)
   comment(revisionId, msg)
-  reportTestResults(phId, "pass")
 }
 
 /**
