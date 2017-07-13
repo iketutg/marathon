@@ -13,6 +13,7 @@ import mesosphere.marathon.state.PathId._
 import mesosphere.marathon.state.{ PathId, Timestamp }
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
 import scala.concurrent.duration._
 
 @IntegrationTest
@@ -669,13 +670,16 @@ class AppDeployIntegrationTest extends AkkaIntegrationTest with EmbeddedMarathon
       When("the deployment is rolled back")
       val delete = marathon.deleteDeployment(deploymentId, force = false)
       delete should be(OK)
-      val rollbackId = delete.originalResponse.headers.find(_.name == RestResource.DeploymentHeader).getOrElse(throw new IllegalArgumentException("No deployment id found in Http Header"))
+      val rollbackId = delete.originalResponse.headers.find(_.name == RestResource.DeploymentHeader).getOrElse(throw new IllegalArgumentException("No deployment id found in Http Header")).value()
 
       Then("old deployment should be canceled and rollback-deployment succeed")
       // Both deployment events may come out of order
+      val waitingFor = mutable.Map("deployment_failed" -> deploymentId, "deployment_success" -> rollbackId)
       waitForEventMatching(s"waiting for canceled $deploymentId and successful $rollbackId") { event =>
-        (event.eventType == "deployment_failed" && event.id == deploymentId) ||
-          (event.eventType == "deployment_success" && event.id == rollbackId)
+        if (waitingFor.get(event.eventType).fold(false)(_ == event.id)) {
+          waitingFor -= event.eventType
+        }
+        waitingFor.isEmpty
       }
 
       Then("no more deployment in the queue")
