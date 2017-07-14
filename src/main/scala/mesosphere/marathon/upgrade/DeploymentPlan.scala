@@ -285,11 +285,12 @@ object DeploymentPlan {
     toKill: Map[PathId, Seq[Instance]] = Map.empty,
     id: Option[String] = None): DeploymentPlan = {
 
+    log.debug(s"Calculating deployment plan from\n$original\nto\n$target")
     // Lookup maps for original and target run specs.
     val originalRuns: Map[PathId, RunSpec] = original.transitiveRunSpecsById
 
     val targetRuns: Map[PathId, RunSpec] = target.transitiveRunSpecsById
-
+    log.debug(s"originalRuns: $originalRuns\ntargetRuns: $targetRuns")
     // A collection of deployment steps for this plan.
     val steps = Seq.newBuilder[DeploymentStep]
 

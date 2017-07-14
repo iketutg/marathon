@@ -144,7 +144,7 @@ private[impl] class GroupManagerActor(
       val deployment = for {
         from <- groupRepo.root()
         (toUnversioned, resolve) <- resolveStoreUrls(assignDynamicServicePorts(from, change(from)))
-        to = GroupVersioningUtil.updateVersionInfoForChangedApps(version, from, toUnversioned)
+        to = GroupVersioningUtil.updateVersionInfoForChangedApps(version, from, toUnversioned).updateVersion(version) // New root group vesion even if there were no changes
         _ = validateOrThrow(to)(RootGroup.valid(config.availableFeatures))
         plan = DeploymentPlan(from, to, resolve, version, toKill)
         _ = validateOrThrow(plan)(DeploymentPlan.deploymentPlanValidator(config))
