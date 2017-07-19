@@ -9,6 +9,7 @@ import mesosphere.marathon.plugin.auth._
 import mesosphere.marathon.plugin.http.HttpResponse
 
 import scala.util.{ Failure, Success, Try }
+import scala.collection.JavaConversions._
 
 /**
   * Base trait for authentication and authorization in http resource endpoints.
@@ -25,7 +26,9 @@ trait AuthResource extends RestResource {
       case Success(maybeIdentity: Option[Identity]) =>
         maybeIdentity.map { identity =>
           try {
-            fn(identity)
+            val result = fn(identity)
+            result.getMetadata.put("Marathon-Schema-Version", List(BuildInfo.version))
+            result
           } catch {
             case e: AccessDeniedException => withResponseFacade(authorizer.handleNotAuthorized(identity, _))
           }

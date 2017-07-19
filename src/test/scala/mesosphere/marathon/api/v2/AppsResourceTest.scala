@@ -1547,4 +1547,19 @@ class AppsResourceTest extends AkkaUnitTest with GroupCreation {
       (appJson \ "fetch" \ 0 \ "destPath" get) should be(JsString("bash.copy"))
     }
   }
+
+  "AppsResource should provide information about marathon version" in new Fixture {
+    val app = AppDefinition(id = PathId("/app"), cmd = Some("foo"))
+    val expectedEmbeds: Set[Embed] = Set(Embed.Counts, Embed.Deployments)
+    val appInfo = AppInfo(app, maybeDeployments = Some(Seq(Identifiable("deployment-123"))), maybeCounts = Some(TaskCounts(1, 2, 3, 4)))
+    appInfoService.selectAppsBy(any, Matchers.eq(expectedEmbeds)) returns Future.successful(Seq(appInfo))
+
+    Given("An authenticated request")
+    val apps = appsResource.index(null, null, null, new java.util.HashSet(), auth.request)
+
+    When("we check the response headers")
+    val headers = apps.getMetadata
+    Then("the response should contain version info")
+    headers.get("Marathon-Schema-Version").get(0) should be (BuildInfo.version)
+  }
 }
