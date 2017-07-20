@@ -60,7 +60,7 @@ trait StartingBehavior extends ReadinessBehavior with StrictLogging { this: Acto
         logger.info(s"Reconciling app ${runSpec.id} scaling: queuing $instancesToStartNow new instances")
         await(launchQueue.addAsync(runSpec, instancesToStartNow))
       }
-      context.system.scheduler.scheduleOnce(5.seconds, self, Sync)
+      context.system.scheduler.scheduleOnce(StartingBehavior.syncInterval, self, Sync)
       Done // Otherwise we will pipe the result of scheduleOnce(...) call which is a Cancellable
     }.pipeTo(self)
 
@@ -72,7 +72,7 @@ trait StartingBehavior extends ReadinessBehavior with StrictLogging { this: Acto
 
     case PostStart =>
       checkFinished()
-      context.system.scheduler.scheduleOnce(StartingBehavior.syncDelay, self, Sync)
+      context.system.scheduler.scheduleOnce(StartingBehavior.firstSyncDelay, self, Sync)
 
     case Done => // This is the result of successful initializeStart(...) call. Nothing to do here
   }
@@ -96,6 +96,7 @@ object StartingBehavior {
   case object Sync
   case object PostStart
 
-  val syncDelay = 1.seconds
+  val firstSyncDelay = 1.seconds
+  val syncInterval = 5.seconds
 }
 
