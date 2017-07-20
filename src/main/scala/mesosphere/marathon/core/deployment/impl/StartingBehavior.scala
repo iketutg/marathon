@@ -72,7 +72,7 @@ trait StartingBehavior extends ReadinessBehavior with StrictLogging { this: Acto
 
     case PostStart =>
       checkFinished()
-      context.system.scheduler.scheduleOnce(1.seconds, self, Sync)
+      context.system.scheduler.scheduleOnce(StartingBehavior.syncDelay, self, Sync)
 
     case Done => // This is the result of successful initializeStart(...) call. Nothing to do here
   }
@@ -95,5 +95,7 @@ trait StartingBehavior extends ReadinessBehavior with StrictLogging { this: Acto
 object StartingBehavior {
   case object Sync
   case object PostStart
+
+  val syncDelay = 1.seconds
 }
 
