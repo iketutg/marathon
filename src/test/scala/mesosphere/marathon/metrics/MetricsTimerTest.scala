@@ -1,15 +1,16 @@
 package mesosphere.marathon
 package metrics
 
-import akka.stream.scaladsl.{ Sink, Source }
+import akka.stream.scaladsl.{Sink, Source}
 import kamon.metric.instrument.CollectionContext
 import mesosphere.AkkaUnitTest
+import org.scalatest.concurrent.Eventually
 
 import scala.Exception
 import scala.concurrent.Promise
 import scala.util.Try
 
-class MetricsTimerTest extends AkkaUnitTest {
+class MetricsTimerTest extends AkkaUnitTest with Eventually {
   "Metrics Timers" should {
     "time crashing call" in {
       When("doing the call (but the future is delayed)")
@@ -77,7 +78,9 @@ class MetricsTimerTest extends AkkaUnitTest {
       timer.histogram.collect(CollectionContext(10)).numberOfMeasurements should be(0L)
       promise.success(1)
       sourceFuture.futureValue should contain theSameElementsAs Seq(1)
-      timer.histogram.collect(CollectionContext(10)).numberOfMeasurements should be(1L)
+      eventually {
+        timer.histogram.collect(CollectionContext(10)).numberOfMeasurements should be(1L)
+      }
     }
 
     "measure a failed source" in {
@@ -88,7 +91,9 @@ class MetricsTimerTest extends AkkaUnitTest {
       val ex = new Exception("")
       promise.failure(ex)
       sourceFuture.futureValue
-      timer.histogram.collect(CollectionContext(10)).numberOfMeasurements should be(1L)
+      eventually {
+        timer.histogram.collect(CollectionContext(10)).numberOfMeasurements should be(1L)
+      }
     }
   }
 }
