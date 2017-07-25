@@ -334,7 +334,7 @@ class MesosAppIntegrationTest extends AkkaIntegrationTest with EmbeddedMarathonT
       When("the deployment is rolled back")
       val deleteResult = marathon.deleteDeployment(deploymentId.get)
       deleteResult should be(OK)
-      val deleteId = createResult.originalResponse.headers.find(_.name == RestResource.DeploymentHeader).map(_.value)
+      val deleteId = deleteResult.originalResponse.headers.find(_.name == RestResource.DeploymentHeader).map(_.value)
       deleteId shouldBe defined
 
       Then("the deployment should be gone")
