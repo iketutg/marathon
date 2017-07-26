@@ -51,7 +51,6 @@ object MarathonTestHelper {
 
   def defaultConfig(
     maxInstancesPerOffer: Int = 1,
-    minReviveOffersInterval: Long = 100,
     mesosRole: Option[String] = None,
     acceptedResourceRoles: Option[Set[String]] = None,
     envVarsPrefix: Option[String] = None,
@@ -61,7 +60,6 @@ object MarathonTestHelper {
     var args = Seq(
       "--master", "127.0.0.1:5050",
       "--max_instances_per_offer", maxInstancesPerOffer.toString,
-      "--min_revive_offers_interval", minReviveOffersInterval.toString,
       "--mesos_authentication_principal", "marathon"
     )
 

@@ -103,7 +103,6 @@ class CoreModuleImpl @Inject() (
 
   private[this] lazy val offerMatcherReconcilerModule =
     new OfferMatcherReconciliationModule(
-      marathonConf,
       clock,
       actorSystem.eventStream,
       taskTrackerModule.instanceTracker,
@@ -139,7 +138,6 @@ class CoreModuleImpl @Inject() (
 
     // internal core dependencies
     offerMatcherManagerModule.subOfferMatcherManager,
-    maybeOfferReviver,
 
     // external guice dependencies
     taskTrackerModule.instanceTracker,
@@ -164,12 +162,6 @@ class CoreModuleImpl @Inject() (
     offerMatcherManagerModule.globalOfferMatcherWantsOffers
       .combineLatest(offerMatcherReconcilerModule.offersWantedObservable)
       .map { case (managerWantsOffers, reconciliationWantsOffers) => managerWantsOffers || reconciliationWantsOffers }
-
-  lazy val maybeOfferReviver = flowActors.maybeOfferReviver(
-    clock, marathonConf,
-    actorSystem.eventStream,
-    offersWanted,
-    marathonSchedulerDriverHolder)
 
   // EVENT
 
@@ -230,7 +222,6 @@ class CoreModuleImpl @Inject() (
     taskTerminationModule.taskKillService
   )
   taskJobsModule.expungeOverdueLostTasks(taskTrackerModule.instanceTracker, taskTrackerModule.stateOpProcessor)
-  maybeOfferReviver
   offerMatcherManagerModule
   launcherModule
   offerMatcherReconcilerModule.start()
